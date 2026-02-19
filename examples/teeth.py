@@ -56,8 +56,10 @@ points = result.hdm_coords
 
 np.save("eigvals.npy", result.eigvals)
 np.save("eigvecs.npy", result.eigvecs)
+print(result.eigvecs.shape)
 
+""" 
 points = pv.PolyData(points)
 plotter = pv.Plotter()
 plotter.add_mesh(points, color="red", point_size=5, render_points_as_spheres=True)
-plotter.show()
+plotter.show() """
