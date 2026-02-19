@@ -45,13 +45,13 @@ def run_hdm(
     if config.verbose:
         print("Compute fiber kernel: Done.")
 
-    normalized_kernel, inv_sqrt_diag = backend.compute_joint_kernel(
+    joint_kernel = backend.compute_joint_kernel(
         config, base_kern, base_idx, fiber_kerns, fiber_idxs, maps
     )
     if config.verbose:
         print("Construct Joint Kernel Matrix: Done.")
 
-    result = backend.spectral_embedding(config, normalized_kernel, inv_sqrt_diag)
+    result = backend.spectral_embedding(config, joint_kernel)
     if config.verbose:
         print("Spectral embedding: Done.")
 

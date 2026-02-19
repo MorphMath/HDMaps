@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sparse
+from numpy import inf
 from scipy.sparse import (
     coo_matrix,
     csr_matrix,
@@ -45,7 +46,7 @@ def compute_fiber_kernels(config: HDMConfig, samples):
 
 
 def compute_joint_kernel(
-    config: HDMConfig,
+    config,
     base_kern: np.ndarray,
     base_idx: np.ndarray,
     fiber_kerns: list[np.ndarray],
@@ -53,8 +54,8 @@ def compute_joint_kernel(
     maps,
 ) -> coo_matrix:
 
-    block_sizes = [0] + [len(fiber_kern) for fiber_kern in fiber_kerns]
-    delimit = np.cumsum(block_sizes)
+    block_sizes = [len(fk) for fk in fiber_kerns]
+    delimit = np.cumsum([0] + block_sizes)
 
     num_samples = len(fiber_kerns)
     num_points = delimit[-1]
@@ -66,22 +67,28 @@ def compute_joint_kernel(
 
     for i in range(num_samples):
         for j in range(config.base_knn):
-            fiber_size = block_sizes[i]
-            neighbor_idx = base_idx[i, j]
-
+            neighbor_idx = int(base_idx[i, j])
             base_val = base_kern[i, j]
 
-            soft_map = maps[i, j]
-            mapped_vals = soft_map @ fiber_kerns[neighbor_idx]
+            i_offset = delimit[i]
 
+            neighbor_size = block_sizes[neighbor_idx]
+            neighbor_offset = delimit[neighbor_idx]
+
+            if i == neighbor_idx:
+                soft_map = sparse.eye(neighbor_size, format="csr")
+            else:
+                soft_map = maps.get((i, neighbor_idx))
+
+            mapped_vals = soft_map @ fiber_kerns[neighbor_idx]
             mapped_vals = mapped_vals.reshape(-1)
+
             mapped_idxs = fiber_idxs[neighbor_idx]
 
-            mapped_row = np.tile(np.arange(fiber_size)[:, None], fiber_knn).reshape(-1)
+            mapped_row = np.tile(np.arange(neighbor_size)[:, None], fiber_knn).reshape(
+                -1
+            )
             mapped_col = mapped_idxs.reshape(-1)
-
-            i_offset = delimit[i]
-            neighbor_offset = delimit[neighbor_idx]
 
             rows.append(mapped_row + i_offset)
             cols.append(mapped_col + neighbor_offset)
@@ -94,7 +101,10 @@ def compute_joint_kernel(
         if config.verbose:
             print(f"Sample {i + 1}/{num_samples} done")
 
-    kern = sparse.coo_matrix((data, (rows, cols)), shape=(num_points, num_points))
+    kern = coo_matrix(
+        (np.concatenate(data), (np.concatenate(rows), np.concatenate(cols))),
+        shape=(num_points, num_points),
+    )
 
     return kern
 
@@ -122,16 +132,27 @@ def eigendecomposition(
     return eigvals, eigvecs
 
 
+def normalize(joint_kernel):
+    sqrt_inv_D = 1 / np.sqrt(joint_kernel.sum(axis=1).A1)
+    sqrt_inv_D[sqrt_inv_D == inf] = 0
+    sqrt_inv_D = sparse.diags(sqrt_inv_D)
+
+    kern = sqrt_inv_D @ joint_kernel @ sqrt_inv_D
+    kern = (kern + kern.T) / 2
+
+    return kern, sqrt_inv_D
+
+
 def spectral_embedding(
     config: HDMConfig,
-    kernel: csr_matrix,
-    inv_sqrt_diag: np.ndarray,
+    joint_kernel: csr_matrix,
 ) -> HDMResult:
 
-    eigvals, eigvecs = eigendecomposition(config, kernel)
-    sqrt_diag = sparse.diags(inv_sqrt_diag, 0)
+    normalized_kernel, inv_sqrt_diag = normalize(joint_kernel)
 
-    renormalized_eigvecs = sqrt_diag @ eigvecs[:, 1:]
+    eigvals, eigvecs = eigendecomposition(config, normalized_kernel)
+
+    renormalized_eigvecs = inv_sqrt_diag @ eigvecs[:, 1:]
     sqrt_lambda = sparse.diags(np.sqrt(eigvals[1:]), 0)
     hdm_coords = renormalized_eigvecs @ sqrt_lambda
 

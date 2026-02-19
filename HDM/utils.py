@@ -8,12 +8,12 @@ from sklearn.cluster import KMeans
 class HDMConfig(NamedTuple):
     base_epsilon: float = 0.04
     fiber_epsilon: float = 0.08
-    num_eigenvectors: int = 50
+    num_eigenvectors: int = 10
     device: str | None = "cpu"  # 'cpu', 'cpu_ragged', 'jax', or 'gpu'
     base_metric: str = "frobenius"
     fiber_metric: str = "euclidean"
-    base_knn: int = None
-    fiber_knn: int = None
+    base_knn: int = 8
+    fiber_knn: int = 8
     verbose: bool = True
 
 
