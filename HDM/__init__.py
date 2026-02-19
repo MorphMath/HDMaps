@@ -1,4 +1,4 @@
-from .HDM import hdm_run
+from .HDM import run_hdm
 from .utils import (
     HDMConfig,
     compute_clusters,
@@ -8,7 +8,7 @@ from .utils import (
 from .visualization_tools import embed_vs_actual
 
 __all__ = [
-    "hdm_run",
+    "run_hdm",
     "HDMConfig",
     "compute_fiber_kernel_from_maps",
     "compute_clusters",
