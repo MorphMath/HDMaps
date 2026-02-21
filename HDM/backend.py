@@ -158,7 +158,6 @@ def spectral_embedding(
     normalized_kernel, inv_sqrt_diag = normalize(joint_kernel)
 
     eigvals, eigvecs = eigendecomposition(config, normalized_kernel)
-    print("eigvals:", eigvals)
 
     renormalized_eigvecs = inv_sqrt_diag @ eigvecs[:, 1:]
     sqrt_lambda = sparse.diags(np.sqrt(eigvals[1:]), 0)
