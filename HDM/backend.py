@@ -114,7 +114,7 @@ def eigendecomposition(
     matrix: sparse.csr_matrix,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform eigendecomposition on a sparse matrix."""
-    tol = 1e-10
+    tol = 1e-6
     maxiter = 10000
     k = config.num_eigenvectors
     which = "LM"
