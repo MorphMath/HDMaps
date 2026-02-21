@@ -51,7 +51,8 @@ def run_hdm(
     if config.verbose:
         print("Construct Joint Kernel Matrix: Done.")
 
-    result = backend.spectral_embedding(config, joint_kernel)
+    block_sizes = [len(s) for s in data_samples]
+    result = backend.spectral_embedding(config, joint_kernel, block_sizes)
     if config.verbose:
         print("Spectral embedding: Done.")
 

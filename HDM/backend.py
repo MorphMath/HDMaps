@@ -39,7 +39,10 @@ def compute_fiber_kernels(config: HDMConfig, samples):
         fiber_trees[i].query(samples[i], k=fiber_knn) for i in range(num_samples)
     ]
     fiber_dists, fiber_idxs = zip(*fiber_query)
-    fiber_eps = np.mean([np.median(fd) for fd in fiber_dists])
+    if config.fiber_epsilon is None:
+        fiber_eps = np.mean([np.median(fd) for fd in fiber_dists])
+    else:
+        fiber_eps = config.fiber_epsilon
     fiber_kerns = [gaussian_kernel(fiber_dist, fiber_eps) for fiber_dist in fiber_dists]
 
     return fiber_kerns, fiber_idxs
@@ -78,7 +81,7 @@ def compute_joint_kernel(
             if i == neighbor_idx:
                 soft_map = sparse.eye(neighbor_size, format="csr")
             else:
-                soft_map = maps.get((i, neighbor_idx))
+                soft_map = maps[i, neighbor_idx]
 
             mapped_vals = soft_map @ fiber_kerns[neighbor_idx]
             mapped_vals = mapped_vals.reshape(-1)
@@ -146,21 +149,41 @@ def normalize(joint_kernel):
 def spectral_embedding(
     config: HDMConfig,
     joint_kernel: csr_matrix,
+    block_sizes: list[int],
 ) -> HDMResult:
+
+    num_samples = len(block_sizes)
+    delimit = np.cumsum([0] + list(block_sizes))
 
     normalized_kernel, inv_sqrt_diag = normalize(joint_kernel)
 
     eigvals, eigvecs = eigendecomposition(config, normalized_kernel)
+    print("eigvals:", eigvals)
 
     renormalized_eigvecs = inv_sqrt_diag @ eigvecs[:, 1:]
     sqrt_lambda = sparse.diags(np.sqrt(eigvals[1:]), 0)
     hdm_coords = renormalized_eigvecs @ sqrt_lambda
 
+    inv_sqrt_diag.data[np.isinf(inv_sqrt_diag.data)] = 0
+    coords = inv_sqrt_diag @ eigvecs[:, 1:]
+    coords = coords * eigvals[1:]
+
+    triu_idx = np.triu_indices(config.num_eigenvectors-1, k=1)
+
+    hbdm = np.zeros((num_samples, len(triu_idx[0])))
+
+    for j in range(num_samples):
+        block = coords[delimit[j]:delimit[j + 1], :]
+        block = block / np.linalg.norm(block, axis=0)[None, :]
+        block = block * np.sqrt(eigvals[1:])
+        X_j = (block.T @ block)[triu_idx]
+        hbdm[j] = X_j
+
     results = HDMResult(
         eigvals=eigvals,
         eigvecs=renormalized_eigvecs,
         hdm_coords=hdm_coords,
-        hbdm_coords=None,
+        hbdm_coords=hbdm,
     )
 
     return results
