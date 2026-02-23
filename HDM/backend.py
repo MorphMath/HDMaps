@@ -26,7 +26,6 @@ def compute_base_kernel(config: HDMConfig, samples):
     else:
         base_eps = config.base_epsilon
     base_kern = gaussian_kernel(base_dists, base_eps)
-    print(f"base_eps: {base_eps}")
 
     return base_kern, base_idx
 
@@ -46,7 +45,6 @@ def compute_fiber_kernels(config: HDMConfig, samples):
     else:
         fiber_eps = config.fiber_epsilon
     fiber_kerns = [gaussian_kernel(fiber_dist, fiber_eps) for fiber_dist in fiber_dists]
-    print(f"fiber_eps: {fiber_eps}")
 
     return fiber_kerns, fiber_idxs
 
@@ -87,7 +85,6 @@ def compute_joint_kernel(
                 soft_map = maps[i, neighbor_idx]
 
             mapped_vals = soft_map @ fiber_kerns[neighbor_idx]
-            print(mapped_vals.shape)
             mapped_vals = mapped_vals.reshape(-1)
 
             mapped_idxs = fiber_idxs[neighbor_idx]
