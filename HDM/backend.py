@@ -11,7 +11,7 @@ from .utils import HDMConfig, HDMResult
 
 
 def gaussian_kernel(dist, eps):
-    return np.exp(-(dist**2) / eps**2)
+    return np.exp(-(dist**2) / eps)
 
 
 def compute_base_kernel(config: HDMConfig, samples):
@@ -26,6 +26,7 @@ def compute_base_kernel(config: HDMConfig, samples):
     else:
         base_eps = config.base_epsilon
     base_kern = gaussian_kernel(base_dists, base_eps)
+    print(f"base_eps: {base_eps}")
 
     return base_kern, base_idx
 
@@ -36,7 +37,8 @@ def compute_fiber_kernels(config: HDMConfig, samples):
 
     fiber_trees = [KDTree(fiber_coord) for fiber_coord in samples]
     fiber_query = [
-        fiber_trees[i].query(samples[i], k=fiber_knn) for i in range(num_samples)
+        fiber_trees[i].query(samples[i], k=fiber_knn, workers=-1)
+        for i in range(num_samples)
     ]
     fiber_dists, fiber_idxs = zip(*fiber_query)
     if config.fiber_epsilon is None:
@@ -44,6 +46,7 @@ def compute_fiber_kernels(config: HDMConfig, samples):
     else:
         fiber_eps = config.fiber_epsilon
     fiber_kerns = [gaussian_kernel(fiber_dist, fiber_eps) for fiber_dist in fiber_dists]
+    print(f"fiber_eps: {fiber_eps}")
 
     return fiber_kerns, fiber_idxs
 
@@ -84,6 +87,7 @@ def compute_joint_kernel(
                 soft_map = maps[i, neighbor_idx]
 
             mapped_vals = soft_map @ fiber_kerns[neighbor_idx]
+            print(mapped_vals.shape)
             mapped_vals = mapped_vals.reshape(-1)
 
             mapped_idxs = fiber_idxs[neighbor_idx]
@@ -118,15 +122,10 @@ def eigendecomposition(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform eigendecomposition on a sparse matrix."""
     tol = 1e-6
-    maxiter = 10000
     k = config.num_eigenvectors
     which = "LM"
 
-    rng = np.random.default_rng(42)
-    v0 = rng.random(size=matrix.shape[0]).astype(np.float64)
-    eigvals, eigvecs = sparse.linalg.eigsh(
-        matrix, k=k, which=which, maxiter=maxiter, tol=tol, v0=v0
-    )
+    eigvals, eigvecs = sparse.linalg.eigsh(matrix, k=k + 1, which=which, tol=tol)
 
     # Sort in descending order
     eigvals = eigvals[::-1]
@@ -154,35 +153,44 @@ def spectral_embedding(
 
     num_samples = len(block_sizes)
     delimit = np.cumsum([0] + list(block_sizes))
+    num_eig = config.num_eigenvectors
 
-    normalized_kernel, inv_sqrt_diag = normalize(joint_kernel)
+    normalized_kernel, sqrt_inv_D = normalize(joint_kernel)
 
-    eigvals, eigvecs = eigendecomposition(config, normalized_kernel)
+    # 1. Eigendecomposition with explicit sorting
+    eigvals, eigvecs = sparse.linalg.eigsh(
+        normalized_kernel, k=num_eig + 1, which="LM", tol=1e-6
+    )
 
-    renormalized_eigvecs = inv_sqrt_diag @ eigvecs[:, 1:]
-    sqrt_lambda = sparse.diags(np.sqrt(eigvals[1:]), 0)
-    hdm_coords = renormalized_eigvecs @ sqrt_lambda
+    idx = np.argsort(eigvals)[::-1]
+    eigvals = eigvals[idx]
+    eigvecs = eigvecs[:, idx]
 
-    inv_sqrt_diag.data[np.isinf(inv_sqrt_diag.data)] = 0
-    coords = inv_sqrt_diag @ eigvecs[:, 1:]
-    coords = coords * eigvals[1:]
+    eigvals = eigvals[1 : num_eig + 1]
+    eigvecs = eigvecs[:, 1 : num_eig + 1]
 
-    triu_idx = np.triu_indices(config.num_eigenvectors-1, k=1)
+    coords = sqrt_inv_D @ eigvecs
+    coords = coords * eigvals
 
+    triu_idx = np.triu_indices(num_eig)
     hbdm = np.zeros((num_samples, len(triu_idx[0])))
 
     for j in range(num_samples):
-        block = coords[delimit[j]:delimit[j + 1], :]
-        block = block / np.linalg.norm(block, axis=0)[None, :]
-        block = block * np.sqrt(eigvals[1:])
+        start, end = delimit[j], delimit[j + 1]
+        block = coords[start:end, :]
+
+        norms = np.linalg.norm(block, axis=0)
+        norms[norms == 0] = 1  # Avoid division by zero
+        block = block / norms[None, :]
+
+        block = block * np.sqrt(eigvals)
+
         X_j = (block.T @ block)[triu_idx]
         hbdm[j] = X_j
 
-    results = HDMResult(
+    return HDMResult(
         eigvals=eigvals,
-        eigvecs=renormalized_eigvecs,
-        hdm_coords=hdm_coords,
+        eigvecs=eigvecs,
+        hdm_coords=coords,
         hbdm_coords=hbdm,
     )
-
-    return results
