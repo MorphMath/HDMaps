@@ -155,8 +155,10 @@ def spectral_embedding(
     normalized_kernel, sqrt_inv_D = normalize(joint_kernel)
 
     # 1. Eigendecomposition with explicit sorting
+    rng = np.random.default_rng(config.seed)
+    v0 = rng.random(normalized_kernel.shape[0])
     eigvals, eigvecs = sparse.linalg.eigsh(
-        normalized_kernel, k=num_eig + 1, which="LM", tol=1e-6
+        normalized_kernel, k=num_eig + 1, which="LM", tol=1e-6, v0=v0
     )
 
     idx = np.argsort(eigvals)[::-1]
