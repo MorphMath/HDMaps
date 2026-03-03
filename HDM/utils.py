@@ -69,9 +69,9 @@ def visualize_by_eigenvector(
 
 
 def get_backend(config: HDMConfig):
-    from . import torch_backend
+    from . import backend
 
-    return torch_backend
+    return backend
 
 
 def compute_fiber_kernel_from_maps(maps):

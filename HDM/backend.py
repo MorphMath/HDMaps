@@ -1,50 +1,49 @@
 import numpy as np
-import scipy.sparse as sparse
-from numpy import inf
-from scipy.sparse import (
-    coo_matrix,
-    csr_matrix,
-)
+import scipy.sparse as sp
+import torch
 from scipy.spatial import KDTree
 
 from .utils import HDMConfig, HDMResult
 
 
-def gaussian_kernel(dist, eps):
+def _is_cuda(device) -> bool:
+    try:
+        return torch.device(device).type == "cuda"
+    except Exception:
+        return False
+
+
+def gaussian_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
     return np.exp(-(dist**2) / eps)
 
 
 def compute_base_kernel(config: HDMConfig, samples):
     base_knn = config.base_knn
 
-    base_coords = np.concat([sample.reshape(1, -1) for sample in samples], axis=0)
+    base_coords = np.concatenate([s.reshape(1, -1) for s in samples], axis=0)
     base_tree = KDTree(base_coords)
     base_dists, base_idx = base_tree.query(base_coords, k=base_knn, workers=-1)
 
-    if config.base_epsilon is None:
-        base_eps = np.median(base_dists)
-    else:
-        base_eps = config.base_epsilon
+    base_eps = np.median(base_dists) if config.base_epsilon is None else config.base_epsilon
     base_kern = gaussian_kernel(base_dists, base_eps)
 
     return base_kern, base_idx
 
 
 def compute_fiber_kernels(config: HDMConfig, samples):
-    num_samples = len(samples)
     fiber_knn = config.fiber_knn
+    num_samples = len(samples)
 
-    fiber_trees = [KDTree(fiber_coord) for fiber_coord in samples]
-    fiber_query = [
-        fiber_trees[i].query(samples[i], k=fiber_knn, workers=-1)
-        for i in range(num_samples)
-    ]
+    fiber_trees = [KDTree(s) for s in samples]
+    fiber_query = [fiber_trees[i].query(samples[i], k=fiber_knn, workers=-1) for i in range(num_samples)]
     fiber_dists, fiber_idxs = zip(*fiber_query)
-    if config.fiber_epsilon is None:
-        fiber_eps = np.mean([np.median(fd) for fd in fiber_dists])
-    else:
-        fiber_eps = config.fiber_epsilon
-    fiber_kerns = [gaussian_kernel(fiber_dist, fiber_eps) for fiber_dist in fiber_dists]
+
+    fiber_eps = (
+        np.mean([np.median(fd) for fd in fiber_dists])
+        if config.fiber_epsilon is None
+        else config.fiber_epsilon
+    )
+    fiber_kerns = [gaussian_kernel(fd, fiber_eps) for fd in fiber_dists]
 
     return fiber_kerns, fiber_idxs
 
@@ -56,8 +55,7 @@ def compute_joint_kernel(
     fiber_kerns: list[np.ndarray],
     fiber_idxs: list[np.ndarray],
     maps,
-) -> coo_matrix:
-
+) -> torch.Tensor:
     block_sizes = [len(fk) for fk in fiber_kerns]
     delimit = np.cumsum([0] + block_sizes)
 
@@ -65,131 +63,174 @@ def compute_joint_kernel(
     num_points = delimit[-1]
     fiber_knn = config.fiber_knn
 
-    rows = []
-    cols = []
-    data = []
+    rows_list = []
+    cols_list = []
+    data_list = []
 
     for i in range(num_samples):
         for j in range(config.base_knn):
             neighbor_idx = int(base_idx[i, j])
-            base_val = base_kern[i, j]
+            base_val = float(base_kern[i, j])
 
             i_offset = delimit[i]
-
             neighbor_size = block_sizes[neighbor_idx]
             neighbor_offset = delimit[neighbor_idx]
 
             if i == neighbor_idx:
-                soft_map = sparse.eye(neighbor_size, format="csr")
+                soft_map = sp.eye(neighbor_size, format="csr")
             else:
                 soft_map = maps[i, neighbor_idx]
 
-            mapped_vals = soft_map @ fiber_kerns[neighbor_idx]
-            mapped_vals = mapped_vals.reshape(-1)
-
+            mapped_vals = (soft_map @ fiber_kerns[neighbor_idx]).reshape(-1)
             mapped_idxs = fiber_idxs[neighbor_idx]
 
-            mapped_row = np.tile(np.arange(neighbor_size)[:, None], fiber_knn).reshape(
-                -1
-            )
+            mapped_row = np.tile(np.arange(neighbor_size)[:, None], fiber_knn).reshape(-1)
             mapped_col = mapped_idxs.reshape(-1)
 
-            rows.append(mapped_row + i_offset)
-            cols.append(mapped_col + neighbor_offset)
-            data.append(mapped_vals * base_val)
+            rows_list.append(mapped_row + i_offset)
+            cols_list.append(mapped_col + neighbor_offset)
+            data_list.append(mapped_vals * base_val)
 
-            rows.append(mapped_col + neighbor_offset)
-            cols.append(mapped_row + i_offset)
-            data.append(mapped_vals * base_val)
+            rows_list.append(mapped_col + neighbor_offset)
+            cols_list.append(mapped_row + i_offset)
+            data_list.append(mapped_vals * base_val)
 
         if config.verbose:
             print(f"Sample {i + 1}/{num_samples} done")
 
-    kern = coo_matrix(
-        (np.concatenate(data), (np.concatenate(rows), np.concatenate(cols))),
-        shape=(num_points, num_points),
+    rows = torch.from_numpy(np.concatenate(rows_list)).long()
+    cols = torch.from_numpy(np.concatenate(cols_list)).long()
+    data = torch.from_numpy(np.concatenate(data_list).astype(np.float64))
+
+    kern = torch.sparse_coo_tensor(
+        torch.stack([rows, cols]), data, (num_points, num_points), dtype=torch.float64
+    )
+    return kern.coalesce()
+
+
+def _normalize(joint_kernel: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """D^{-1/2} K D^{-1/2}, symmetrized. Returns (normalized_kernel, sqrt_inv_D)."""
+    kern = joint_kernel.coalesce()
+    indices = kern.indices()  # (2, nnz)
+    values = kern.values()   # (nnz,)
+
+    # Row sums via scatter
+    row_sums = torch.zeros(kern.shape[0], dtype=torch.float64)
+    row_sums.scatter_add_(0, indices[0], values)
+
+    sqrt_inv_D = torch.rsqrt(row_sums)
+    sqrt_inv_D[~torch.isfinite(sqrt_inv_D)] = 0.0
+
+    # Element-wise D^{-1/2} scaling on COO values
+    scaled = values * sqrt_inv_D[indices[0]] * sqrt_inv_D[indices[1]]
+
+    # Symmetrize: (K + K^T) / 2 by concatenating transposed entries
+    all_indices = torch.cat([indices, indices.flip(0)], dim=1)
+    all_values = torch.cat([scaled, scaled]) * 0.5
+
+    normalized = torch.sparse_coo_tensor(all_indices, all_values, kern.shape, dtype=torch.float64)
+    normalized = normalized.coalesce()
+
+    return normalized, sqrt_inv_D
+
+
+def _eigsh_scipy(kernel: torch.Tensor, k: int, seed=None) -> tuple[torch.Tensor, torch.Tensor]:
+    """CPU eigendecomposition: bridge torch sparse COO → scipy CSR → eigsh."""
+    csr = kernel.to_sparse_csr()
+    crow = csr.crow_indices().numpy()
+    col = csr.col_indices().numpy()
+    vals = csr.values().numpy()
+    n = csr.shape[0]
+
+    scipy_mat = sp.csr_matrix((vals, col, crow), shape=(n, n))
+
+    rng = np.random.default_rng(seed)
+    v0 = rng.random(n)
+    eigvals, eigvecs = sp.linalg.eigsh(scipy_mat, k=k + 1, which="LM", tol=1e-6, v0=v0)
+
+    idx = np.argsort(eigvals)[::-1]
+    return (
+        torch.from_numpy(eigvals[idx].copy()),
+        torch.from_numpy(eigvecs[:, idx].copy()),
     )
 
-    return kern
 
+def _eigsh_cupy(
+    kernel: torch.Tensor, k: int, device: str, seed=None
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """GPU eigendecomposition: bridge torch sparse → CuPy CSR (DLPack) → eigsh → CPU."""
+    import cupy as cp
+    import cupyx.scipy.sparse as cpx_sparse
+    import cupyx.scipy.sparse.linalg as cpx_linalg
 
-def eigendecomposition(
-    config,
-    matrix: sparse.csr_matrix,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Perform eigendecomposition on a sparse matrix."""
-    tol = 1e-6
-    k = config.num_eigenvectors
-    which = "LM"
+    # Convert to CSR and move to the target CUDA device
+    csr = kernel.to_sparse_csr().to(device)
 
-    eigvals, eigvecs = sparse.linalg.eigsh(matrix, k=k + 1, which=which, tol=tol)
+    crow = csr.crow_indices().to(torch.int32)
+    col = csr.col_indices().to(torch.int32)
+    vals = csr.values()  # float64 on CUDA
 
-    # Sort in descending order
-    eigvals = eigvals[::-1]
-    eigvecs = eigvecs[:, ::-1]
+    # Zero-copy bridge via DLPack
+    cp_crow = cp.from_dlpack(crow)
+    cp_col = cp.from_dlpack(col)
+    cp_vals = cp.from_dlpack(vals)
 
-    return eigvals, eigvecs
+    n = csr.shape[0]
+    cp_mat = cpx_sparse.csr_matrix((cp_vals, cp_col, cp_crow), shape=(n, n))
 
+    eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(cp_mat, k=k + 1, which="LM", tol=1e-6)
 
-def normalize(joint_kernel):
-    sqrt_inv_D = 1 / np.sqrt(joint_kernel.sum(axis=1).A1)
-    sqrt_inv_D[sqrt_inv_D == inf] = 0
-    sqrt_inv_D = sparse.diags(sqrt_inv_D)
+    # Bridge back to torch and move to CPU
+    eigvals = torch.from_dlpack(eigvals_cp).cpu()
+    eigvecs = torch.from_dlpack(eigvecs_cp).cpu()
 
-    kern = sqrt_inv_D @ joint_kernel @ sqrt_inv_D
-    kern = (kern + kern.T) / 2
-
-    return kern, sqrt_inv_D
+    idx = torch.argsort(eigvals, descending=True)
+    return eigvals[idx], eigvecs[:, idx]
 
 
 def spectral_embedding(
     config: HDMConfig,
-    joint_kernel: csr_matrix,
+    joint_kernel: torch.Tensor,
     block_sizes: list[int],
 ) -> HDMResult:
-
     num_samples = len(block_sizes)
     delimit = np.cumsum([0] + list(block_sizes))
     num_eig = config.num_eigenvectors
 
-    normalized_kernel, sqrt_inv_D = normalize(joint_kernel)
+    # Normalize on CPU
+    normalized_kernel, sqrt_inv_D = _normalize(joint_kernel)
 
-    # 1. Eigendecomposition with explicit sorting
-    rng = np.random.default_rng(config.seed)
-    v0 = rng.random(normalized_kernel.shape[0])
-    eigvals, eigvecs = sparse.linalg.eigsh(
-        normalized_kernel, k=num_eig + 1, which="LM", tol=1e-6, v0=v0
-    )
+    # Eigendecomposition: CuPy on CUDA, scipy on CPU
+    if _is_cuda(config.device):
+        eigvals, eigvecs = _eigsh_cupy(normalized_kernel, num_eig, config.device, config.seed)
+    else:
+        eigvals, eigvecs = _eigsh_scipy(normalized_kernel, num_eig, config.seed)
 
-    idx = np.argsort(eigvals)[::-1]
-    eigvals = eigvals[idx]
-    eigvecs = eigvecs[:, idx]
-
+    # Drop trivial leading eigenvalue
     eigvals = eigvals[1 : num_eig + 1]
     eigvecs = eigvecs[:, 1 : num_eig + 1]
 
-    coords = sqrt_inv_D @ eigvecs
-    coords = coords * eigvals
+    # Recover unnormalized coordinates: D^{-1/2} * eigvecs * eigvals
+    coords = sqrt_inv_D[:, None] * eigvecs * eigvals[None, :]
 
-    triu_idx = np.triu_indices(num_eig)
-    hbdm = np.zeros((num_samples, len(triu_idx[0])))
+    # HBDM: outer-product summaries per sample block
+    triu_i, triu_j = torch.triu_indices(num_eig, num_eig)
+    hbdm = torch.zeros(num_samples, len(triu_i), dtype=torch.float64)
 
     for j in range(num_samples):
-        start, end = delimit[j], delimit[j + 1]
+        start, end = int(delimit[j]), int(delimit[j + 1])
         block = coords[start:end, :]
 
-        norms = np.linalg.norm(block, axis=0)
-        norms[norms == 0] = 1  # Avoid division by zero
+        norms = torch.linalg.norm(block, dim=0)
+        norms[norms == 0] = 1.0
         block = block / norms[None, :]
+        block = block * torch.sqrt(eigvals)[None, :]
 
-        block = block * np.sqrt(eigvals)
-
-        X_j = (block.T @ block)[triu_idx]
-        hbdm[j] = X_j
+        hbdm[j] = (block.T @ block)[triu_i, triu_j]
 
     return HDMResult(
-        eigvals=eigvals,
-        eigvecs=eigvecs,
-        hdm_coords=coords,
-        hbdm_coords=hbdm,
+        eigvals=eigvals.numpy(),
+        eigvecs=eigvecs.numpy(),
+        hdm_coords=coords.numpy(),
+        hbdm_coords=hbdm.numpy(),
     )
