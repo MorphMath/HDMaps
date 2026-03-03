@@ -172,3 +172,5 @@ platyrrhine/Names.mat
 platyrrhine/FinalDists.mat
 platyrrhine/softMapMatrix.mat
 benchmark/plots/*
+
+.vscode/
