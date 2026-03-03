@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from pathlib import Path
 from scipy.sparse import eye as speye
 from HDM import run_hdm, HDMConfig
@@ -22,7 +23,7 @@ def test_wings_backend_consistency():
         base_knn=4,
         fiber_knn=3,
         num_eigenvectors=6,
-        device="cpu",  # switch to "pytorch" when ready
+        device=torch.device("cpu"),
         verbose=False,
         seed=42,
     )

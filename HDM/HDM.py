@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 
 from .utils import HDMConfig, HDMResult, get_backend
@@ -7,7 +5,7 @@ from .utils import HDMConfig, HDMResult, get_backend
 
 def run_hdm(
     config: HDMConfig = HDMConfig(),
-    data_samples: Optional[list[np.ndarray]] = None,
+    data_samples: list[np.ndarray] = None,
     maps=None,
 ) -> HDMResult:
     """
