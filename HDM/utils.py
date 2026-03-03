@@ -1,21 +1,30 @@
-import numpy as np
 from typing import NamedTuple
-from sklearn.cluster import KMeans
+
+import numpy as np
+from sklearn.discriminant_analysis import StandardScaler
+import torch
 from scipy.sparse import block_array, coo_matrix, issparse
+from sklearn.cluster import KMeans
 
 
 class HDMConfig(NamedTuple):
-    base_epsilon: float = 0.04
-    fiber_epsilon: float = 0.08
-    num_eigenvectors: int = 4
-    device: str | None = "cpu"  # 'cpu', 'cpu_ragged', 'jax', or 'gpu'
+    base_epsilon: float | None = None
+    fiber_epsilon: float | None = None
+    num_eigenvectors: int = 5
+    device: torch.device = torch.device("cpu")
     base_metric: str = "frobenius"
     fiber_metric: str = "euclidean"
-    base_sparsity: float = None
-    base_knn: int = None
-    fiber_sparsity: float = None
-    fiber_knn: int = None
+    base_knn: int = 8
+    fiber_knn: int = 8
     verbose: bool = True
+    seed: int | None = None
+
+
+class HDMResult(NamedTuple):
+    eigvecs: np.ndarray
+    eigvals: np.ndarray
+    hdm_coords: np.ndarray
+    hbdm_coords: np.ndarray
 
 
 def compute_block_indices(data_samples: list[np.ndarray]) -> np.ndarray:
@@ -60,23 +69,9 @@ def visualize_by_eigenvector(
 
 
 def get_backend(config: HDMConfig):
-    """Return the appropriate backend based on the configuration."""
-    if config.device == "cpu":
-        from . import cpu
+    from . import torch_backend
 
-        return cpu
-
-    elif config.device == "gpu":
-        print("Warning: gpu backend is currently under development and is currently not supported")
-        from . import cupy
-
-        return cupy
-    elif config.device == "jax":
-        from . import jax as jax_backend
-
-        return jax_backend
-    else:
-        raise ValueError(f"Unsupported device: {config.device}")
+    return torch_backend
 
 
 def compute_fiber_kernel_from_maps(maps):

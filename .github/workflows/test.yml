@@ -1,8 +1,10 @@
 name: Test package
 
 on:
-  push:
   pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
 
 jobs:
   test:
@@ -12,21 +14,18 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install setuptools wheel
-          pip install -e .
-          pip install pytest
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[dev]"
+
       - name: Run tests
-        env:
-          PYTHONPATH: .HDM HDM/tests/
-        run: |
-          pytest HDM/tests
+        run: pytest

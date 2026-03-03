@@ -30,6 +30,7 @@ def load_all_off_vertices(folder):
 
 
 data_samples = load_all_off_vertices("platyrrhine/ReparametrizedOFF")
+np.save("data_samples.npy", np.vstack(data_samples))
 maps = loadmat("platyrrhine/softMapMatrix.mat")["softMapMatrix"]
 base_distances = load_npz(
     "example-data/teeth/base_distances.npz"
@@ -44,15 +45,21 @@ config = HDMConfig(
     fiber_knn=4,
     device="cpu")
 
-points = hdm_embed(
+result = hdm_embed(
     config=config,
     maps=maps,
     base_distances = base_distances,
     data_samples = data_samples
 )
 
+points = result.hdm_coords
 
+np.save("eigvals.npy", result.eigvals)
+np.save("eigvecs.npy", result.eigvecs)
+print(result.eigvecs.shape)
+
+""" 
 points = pv.PolyData(points)
 plotter = pv.Plotter()
 plotter.add_mesh(points, color="red", point_size=5, render_points_as_spheres=True)
-plotter.show()
+plotter.show() """
