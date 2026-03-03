@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
 import numpy as np
-from sklearn.discriminant_analysis import StandardScaler
+from sklearn.preprocessing import StandardScaler
 import torch
 from scipy.sparse import block_array, coo_matrix, issparse
 from sklearn.cluster import KMeans

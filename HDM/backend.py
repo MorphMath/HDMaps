@@ -115,7 +115,7 @@ def _normalize(joint_kernel: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     values = kern.values()   # (nnz,)
 
     # Row sums via scatter
-    row_sums = torch.zeros(kern.shape[0], dtype=torch.float64)
+    row_sums = torch.zeros(kern.shape[0], dtype=torch.float64, device=kern.device)
     row_sums.scatter_add_(0, indices[0], values)
 
     sqrt_inv_D = torch.rsqrt(row_sums)
@@ -178,7 +178,8 @@ def _eigsh_cupy(
     n = csr.shape[0]
     cp_mat = cpx_sparse.csr_matrix((cp_vals, cp_col, cp_crow), shape=(n, n))
 
-    eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(cp_mat, k=k + 1, which="LM", tol=1e-6)
+    v0 = cp.array(np.random.default_rng(seed).random(n)) if seed is not None else None
+    eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(cp_mat, k=k + 1, which="LM", tol=1e-6, v0=v0)
 
     # Bridge back to torch and move to CPU
     eigvals = torch.from_dlpack(eigvals_cp).cpu()
