@@ -6,6 +6,7 @@ from .utils import HDMConfig, HDMResult, get_backend
 def run_hdm(
     config: HDMConfig = HDMConfig(),
     data_samples: list[np.ndarray] = None,
+    base_dist: np.ndarray = None,
     maps=None,
 ) -> HDMResult:
     """
@@ -33,7 +34,10 @@ def run_hdm(
     if config.verbose:
         print("Compute HDM Embedding")
 
-    base_kern, base_idx = backend.compute_base_kernel(config, data_samples)
+    if base_dist is not None:
+        base_kern, base_idx = backend.compute_base_kernel_with_precomputed_distances(config, base_dist)
+    else:
+        base_kern, base_idx = backend.compute_base_kernel(config, data_samples)
 
     if config.verbose:
         print("Compute base kernel: Done.")

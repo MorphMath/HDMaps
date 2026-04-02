@@ -29,6 +29,15 @@ def compute_base_kernel(config: HDMConfig, samples):
 
     return base_kern, base_idx
 
+def compute_base_kernel_with_precomputed_distances(config: HDMConfig, D):
+    base_idx = np.argsort(D, axis=1)[:, :config.base_knn]
+    base_dists = np.take_along_axis(D, base_idx, axis=1)
+
+    base_eps = np.median(base_dists) if config.base_epsilon is None else config.base_epsilon
+    base_kern = gaussian_kernel(base_dists, base_eps)
+
+    return base_kern, base_idx
+
 
 def compute_fiber_kernels(config: HDMConfig, samples):
     fiber_knn = config.fiber_knn
@@ -81,19 +90,24 @@ def compute_joint_kernel(
             else:
                 soft_map = maps[i, neighbor_idx]
 
-            mapped_vals = (soft_map @ fiber_kerns[neighbor_idx]).reshape(-1)
-            mapped_idxs = fiber_idxs[neighbor_idx]
+            # Build sparse fiber kernel for neighbor
+            fk_rows = np.repeat(np.arange(neighbor_size), fiber_knn)
+            fk_cols = fiber_idxs[neighbor_idx].reshape(-1)
+            fk_data = fiber_kerns[neighbor_idx].reshape(-1)
+            fiber_kern_sparse = sp.csr_matrix(
+                (fk_data, (fk_rows, fk_cols)), shape=(neighbor_size, neighbor_size)
+            )
 
-            mapped_row = np.tile(np.arange(neighbor_size)[:, None], fiber_knn).reshape(-1)
-            mapped_col = mapped_idxs.reshape(-1)
+            # Mapped kernel: soft_map @ fiber_kernel, then extract sparse entries
+            mapped_kern = (soft_map @ fiber_kern_sparse).tocoo()
 
-            rows_list.append(mapped_row + i_offset)
-            cols_list.append(mapped_col + neighbor_offset)
-            data_list.append(mapped_vals * base_val)
+            rows_list.append(mapped_kern.row + i_offset)
+            cols_list.append(mapped_kern.col + neighbor_offset)
+            data_list.append(mapped_kern.data * base_val)
 
-            rows_list.append(mapped_col + neighbor_offset)
-            cols_list.append(mapped_row + i_offset)
-            data_list.append(mapped_vals * base_val)
+            rows_list.append(mapped_kern.col + neighbor_offset)
+            cols_list.append(mapped_kern.row + i_offset)
+            data_list.append(mapped_kern.data * base_val)
 
         if config.verbose:
             print(f"Sample {i + 1}/{num_samples} done")
@@ -101,6 +115,7 @@ def compute_joint_kernel(
     rows = torch.from_numpy(np.concatenate(rows_list)).long()
     cols = torch.from_numpy(np.concatenate(cols_list)).long()
     data = torch.from_numpy(np.concatenate(data_list).astype(np.float64))
+    
 
     kern = torch.sparse_coo_tensor(
         torch.stack([rows, cols]), data, (num_points, num_points), dtype=torch.float64
