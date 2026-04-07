@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "HDM"
 version = "0.0.1"
 authors = [
-  { name="Felix Risbro Hjerrild", email="felix+signDNE@hjerrild.org" },
+  { name="Felix Risbro Hjerrild", email="felix+hdmaps@hjerrild.org" },
   { name="Sofus Hesseldahl Laubel", email="sofus@laubel.net"}
 ]
 description = "HDM description"
@@ -21,7 +21,7 @@ dependencies = [
     "numpy>=2.0,<3.0",
     "scipy>=1.15,<2.0",
     "scikit-learn>=1.6,<2.0",
-    "pyvista>=0.45,<1.0",
+    #"pyvista>=0.45,<1.0",
     "trimesh>=4.6,<5.0",
     "tqdm>=4.67,<5.0",
     "matplotlib>=3,<4.0",
