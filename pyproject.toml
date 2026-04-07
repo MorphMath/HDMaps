@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "HDM"
 version = "0.0.1"
 authors = [
-  { name="Felix Risbro Hjerrild", email="felix+signDNE@hjerrild.org" },
+  { name="Felix Risbro Hjerrild", email="felix+hdmaps@hjerrild.org" },
   { name="Sofus Hesseldahl Laubel", email="sofus@laubel.net"}
 ]
 description = "HDM description"
