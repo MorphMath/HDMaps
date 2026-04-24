@@ -5,7 +5,7 @@ from .utils import (
     compute_fiber_kernel_from_maps,
     #visualize_by_eigenvector,
 )
-from .visualization_tools import embed_vs_actual
+#from .visualization_tools import embed_vs_actual
 
 __all__ = [
     "run_hdm",
@@ -13,5 +13,5 @@ __all__ = [
     "compute_fiber_kernel_from_maps",
     "compute_clusters",
     #"visualize_by_eigenvector",
-    "embed_vs_actual",
+    #"embed_vs_actual",
 ]
