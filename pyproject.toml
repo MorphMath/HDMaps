@@ -6,12 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "HDM"
 version = "0.0.1"
 authors = [
-  { name="Felix Risbro Hjerrild", email="felix+hdmaps@hjerrild.org" },
+  { name="Felix Granum", email="felix+hdmaps@hjerrild.org" },
   { name="Sofus Hesseldahl Laubel", email="sofus@laubel.net"}
 ]
 description = "HDM description"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
