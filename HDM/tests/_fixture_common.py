@@ -1,19 +1,3 @@
-"""Shared configuration and golden-output helpers for the end-to-end tests.
-
-The tests are regression tests: run_hdm is run on a small saved bundle and its
-outputs are compared against saved goldens. run_hdm's raw eigenvector-based
-coordinates are only defined up to per-eigenvector sign (and up to rotation
-within degenerate eigenspaces), so they are not compared directly. Instead we
-compare three quantities that are invariant to that ambiguity and small enough
-to store:
-
-    eigvals            - the retained eigenvalues
-    hbdd               - the fibre-to-fibre HBDD distance matrix (n_samples^2)
-    hdm_singular_values - singular values of the HDM coordinate matrix
-
-The generators and the tests import the same config and golden_outputs so the
-comparison is guaranteed to use the exact settings that produced the goldens.
-"""
 import numpy as np
 
 TEETH_CONFIG = dict(
