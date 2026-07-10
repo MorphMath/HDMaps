@@ -46,12 +46,19 @@ def full_kernel(maps: np.ndarray, base_kernel: np.ndarray, num_data_samples: int
 
 def _normalize(W: sp.csr_matrix, config: HDMConfig) -> tuple[sp.csr_matrix, sp.csr_matrix]:
     d = np.asarray(W.sum(axis=1)).ravel()
-    d_pow_a = np.where(d > 0, d ** (-config.alpha), 0.0)
+    
+    d_pow_a = np.zeros_like(d)
+    np.power(d, -config.alpha, out=d_pow_a, where=d > 0)
+    
     D_neg_pow_a = sp.diags(d_pow_a, format="csr")
 
     W_a = D_neg_pow_a @ W @ D_neg_pow_a
     d_a = np.asarray(W_a.sum(axis=1)).ravel()
-    d_a_inv_sqrt = np.where(d_a > 0, 1.0 / np.sqrt(d_a), 0.0)
+    
+    d_a_inv_sqrt = np.zeros_like(d_a)
+    np.sqrt(d_a, out=d_a_inv_sqrt, where=d_a > 0)
+    np.reciprocal(d_a_inv_sqrt, out=d_a_inv_sqrt, where=d_a > 0)
+    
     D_a_inv_sqrt = sp.diags(d_a_inv_sqrt, format="csr")
     A = D_a_inv_sqrt @ W_a @ D_a_inv_sqrt
     return A, d_a_inv_sqrt
@@ -78,7 +85,6 @@ def _eigsh_cupy(
     kernel: sp.csr_matrix, k: int, config: HDMConfig
 ) -> tuple[torch.Tensor, torch.Tensor]:
     import cupy as cp
-    import cupyx.scipy.sparse as cpx_sparse
     import cupyx.scipy.sparse.linalg as cpx_linalg
     import cupyx.scipy.sparse as cpsp
 

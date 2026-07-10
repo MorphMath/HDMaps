@@ -46,3 +46,6 @@ gpu = [
 
 [tool.pytest.ini_options]
 testpaths = ["HDM/tests"]
+markers = [
+    "gpu: end-to-end tests requiring a CUDA GPU with cupy (run with -m gpu; skipped otherwise)",
+]

@@ -1,40 +1,32 @@
 import numpy as np
 from pathlib import Path
-from scipy.sparse import eye as speye
+
 from HDM import run_hdm, HDMConfig
+from _fixture_common import WINGS_CONFIG, assert_matches
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-def test_e2e_wings():
-    files = sorted(FIXTURES_DIR.glob("*.txt"))
-    samples = [np.loadtxt(f, delimiter=",") for f in files]
-
-    n = len(samples)
-    size = samples[0].shape[0]
-
-    maps = np.empty((n, n), dtype=object)
-    for i in range(n):
-        for j in range(n):
-            maps[i, j] = speye(size, format="csr")
-
-    config = HDMConfig(
-        base_knn=4,
-        fiber_knn=3,
-        num_eigenvectors=6,
-        device="cpu",
-        verbose=False,
-        seed=42,
-    )
-
-    result = run_hdm(config=config, maps=maps, data_samples=samples)
-
-    assert np.allclose(result.hdm_coords, np.load(FIXTURES_DIR / "expected_hdm_coords.npy"))
-    assert np.allclose(result.hbdm_coords, np.load(FIXTURES_DIR / "expected_hbdm_coords.npy"))
-    assert np.allclose(result.eigvals, np.load(FIXTURES_DIR / "expected_eigvals.npy"))
+def load_bundle():
+    # allow_pickle: maps is an object array of sparse blocks; this is our own committed fixture.
+    data = np.load(FIXTURES_DIR / "wings_bundle.npz", allow_pickle=True)
+    return data["base_dist"], data["maps"]
 
 
-def test_e2e_wings_detects_wrong_result():
-    expected = np.load(FIXTURES_DIR / "expected_hdm_coords.npy")
-    assert not np.allclose(expected + 1.0, expected)
-    assert not np.allclose(np.zeros_like(expected), expected)
+def test_e2e_wings_matches_golden():
+    base_dist, maps = load_bundle()
+    result = run_hdm(base_dist, maps, HDMConfig(**WINGS_CONFIG))
+    expected = np.load(FIXTURES_DIR / "wings_expected.npz")
+    assert_matches(result, expected)
+
+
+def test_e2e_wings_detects_regression():
+    base_dist, maps = load_bundle()
+    result = run_hdm(base_dist, maps, HDMConfig(**WINGS_CONFIG))
+    perturbed = dict(np.load(FIXTURES_DIR / "wings_expected.npz"))
+    perturbed["hbdd"] = perturbed["hbdd"] + 1.0
+    try:
+        assert_matches(result, perturbed)
+    except AssertionError:
+        return
+    raise AssertionError("assert_matches accepted a perturbed golden output")
