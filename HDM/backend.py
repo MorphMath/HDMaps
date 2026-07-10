@@ -124,7 +124,6 @@ def spectral_embedding(
     vals = 1.0 - vals
     V = V[:, 1 : num_eig + 1]
 
-    # This is not included in the paper, but tingran does it??
     V = sqrt_inv_D[:, None] * V
 
     HDM = V * (vals ** config.t)
