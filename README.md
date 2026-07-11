@@ -1,6 +1,7 @@
 # HDMaps: Horizontal Diffusion Maps implemented in Python
 [![Test package](https://github.com/frisbro303/HDM_Python/actions/workflows/test.yml/badge.svg)](https://github.com/frisbro303/HDM_Python/actions/workflows/test.yml)
-![GitHub License](https://shields.io)
+[![License: MIT](https://shields.io)](./LICENSE)
+
 
 **A Python implementation of Horizontal Diffusion Maps (HDM), a manifold learning framework for analysis of datasets with base-fiber structure.**
 
