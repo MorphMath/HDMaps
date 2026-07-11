@@ -1,71 +1,28 @@
 from typing import NamedTuple
 
 import numpy as np
-from sklearn.preprocessing import StandardScaler
 import torch
-from scipy.sparse import block_array, coo_matrix, issparse
-from sklearn.cluster import KMeans
 
 
 class HDMConfig(NamedTuple):
     base_epsilon: float | None = None
-    fiber_epsilon: float | None = None
     num_eigenvectors: int = 5
     device: torch.device = torch.device("cpu")
     base_metric: str = "frobenius"
-    fiber_metric: str = "euclidean"
-    base_knn: int = 8
-    fiber_knn: int = 8
+    base_knn: int = 4
     verbose: bool = True
-    seed: int | None = None
+    seed: int = 67
+    alpha: float = 1.0
+    t: float = 1.0
+    dtype: type = np.float64
+    
 
 
 class HDMResult(NamedTuple):
     eigvecs: np.ndarray
     eigvals: np.ndarray
-    hdm_coords: np.ndarray
-    hbdm_coords: np.ndarray
-
-
-def compute_block_indices(data_samples: list[np.ndarray]) -> np.ndarray:
-    """Compute cumulative start indices for a list of data samples."""
-    lengths = np.array([len(s) for s in data_samples], dtype=np.int32)
-    return np.concatenate([np.array([0], dtype=np.int32), np.cumsum(lengths)])
-
-
-def compute_clusters(
-    hdm_coords: np.ndarray, num_clusters: int, seed=None
-) -> np.ndarray:
-    scaled_coords = StandardScaler().fit_transform(hdm_coords)
-
-    kmeans = KMeans(n_clusters=num_clusters, random_state=seed)
-    labels = kmeans.fit_predict(scaled_coords)
-
-    return labels
-
-
-def visualize_by_eigenvector(
-    point_cloud,
-    hdm_coords,
-    eigenvector_idx,
-    start_idx=0,
-    title="Eigenvector Visualization",
-):
-    import pyvista as pv
-
-    plotter = pv.Plotter()
-
-    pv_mesh = pv.PolyData(point_cloud)
-
-    num_vertices = point_cloud.shape[0]
-
-    eigenvector = hdm_coords[start_idx : start_idx + num_vertices, eigenvector_idx]
-
-    pv_mesh.point_data["eigenvector"] = eigenvector
-
-    plotter.add_mesh(pv_mesh, scalars="eigenvector", cmap="jet", show_edges=False)
-    plotter.add_title(title)
-    plotter.show()
+    HDM: np.ndarray
+    HBDD: np.ndarray
 
 
 def get_backend(config: HDMConfig):
@@ -74,9 +31,31 @@ def get_backend(config: HDMConfig):
     return backend
 
 
-def compute_fiber_kernel_from_maps(maps):
-    # maps: 2D array-like of sparse matrices (or arrays)
-    blocks = [
-        [(m if issparse(m) else coo_matrix(m)).tocoo() for m in row] for row in maps
-    ]
-    return block_array(blocks, format="coo")
+def torch_dtype(dtype) -> torch.dtype:
+    return torch.from_numpy(np.empty(0, dtype=dtype)).dtype
+
+
+def validate_dtypes(base_dist: np.ndarray, maps: np.ndarray, config: HDMConfig):
+    expected = np.dtype(config.dtype)
+    if base_dist.dtype != expected:
+        raise ValueError(f"base_dist is {base_dist.dtype}, expected {expected}")
+    for i in range(len(maps)):
+        for j in range(len(maps)):
+            block = maps[i][j]
+            if block is not None and block.dtype != expected:
+                raise ValueError(f"maps[{i}][{j}] is {block.dtype}, expected {expected}")
+
+def approx_base_eps(D: np.ndarray):
+    return np.median(np.max(D, axis=1)) ** 2
+
+
+def get_sizes(maps: np.ndarray) -> tuple[int, int]:
+    num_data_samples = len(maps)
+    sizes = [maps[i][i].shape[0] for i in range(num_data_samples)]
+    return (num_data_samples, sizes)
+
+def _is_cuda(device) -> bool:
+    try:
+        return torch.device(device).type == "cuda"
+    except Exception:
+        return False

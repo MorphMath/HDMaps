@@ -1,25 +1,32 @@
 import numpy as np
 from pathlib import Path
+
 from HDM import run_hdm, HDMConfig
+from _fixture_common import TEETH_CONFIG, assert_matches
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-def test_e2e_teeth():
-    meshes = np.load(FIXTURES_DIR / "teeth_meshes.npy", allow_pickle=True)
-    maps = np.load(FIXTURES_DIR / "teeth_maps.npy", allow_pickle=True)
+def load_bundle():
+    # allow_pickle: maps is an object array of sparse blocks; this is our own committed fixture.
+    data = np.load(FIXTURES_DIR / "teeth_bundle.npz", allow_pickle=True)
+    return data["base_dist"], data["maps"]
 
-    config = HDMConfig(
-        base_knn=4,
-        fiber_knn=4,
-        num_eigenvectors=4,
-        device="cpu",
-        verbose=False,
-        seed=42,
-    )
 
-    result = run_hdm(config=config, maps=maps, data_samples=list(meshes))
+def test_e2e_teeth_matches_golden():
+    base_dist, maps = load_bundle()
+    result = run_hdm(base_dist, maps, HDMConfig(**TEETH_CONFIG))
+    expected = np.load(FIXTURES_DIR / "teeth_expected.npz")
+    assert_matches(result, expected)
 
-    assert np.allclose(result.hdm_coords, np.load(FIXTURES_DIR / "expected_teeth_hdm_coords.npy"))
-    assert np.allclose(result.hbdm_coords, np.load(FIXTURES_DIR / "expected_teeth_hbdm_coords.npy"))
-    assert np.allclose(result.eigvals, np.load(FIXTURES_DIR / "expected_teeth_eigvals.npy"))
+
+def test_e2e_teeth_detects_regression():
+    base_dist, maps = load_bundle()
+    result = run_hdm(base_dist, maps, HDMConfig(**TEETH_CONFIG))
+    perturbed = dict(np.load(FIXTURES_DIR / "teeth_expected.npz"))
+    perturbed["hbdd"] = perturbed["hbdd"] + 1.0
+    try:
+        assert_matches(result, perturbed)
+    except AssertionError:
+        return
+    raise AssertionError("assert_matches accepted a perturbed golden output")

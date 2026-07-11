@@ -1,60 +1,48 @@
 import numpy as np
 
-from .utils import HDMConfig, HDMResult, get_backend
+from .utils import HDMConfig, HDMResult, get_backend, get_sizes, validate_dtypes
 
 
 def run_hdm(
+    base_dist: np.ndarray,
+    maps: np.ndarray,
     config: HDMConfig = HDMConfig(),
-    data_samples: list[np.ndarray] = None,
-    base_dist: np.ndarray = None,
-    maps=None,
 ) -> HDMResult:
     """
-    Computes the Horizontal Diffusion Maps (HDM) and Horizontal Base Diffusion Maps (HBDM)
-    embedding from input data.
+    Computes the Horizontal Diffusion Maps (HDM) and Horizontal Base Diffusion Distance (HBDD) from precomputed base distances and fiber maps.
 
-    This function constructs and processes base and fiber kernels from the input data or
-    precomputed distances/kernels, normalizes the resulting joint kernel, and computes
-    a HDM embedding.
+    Builds the base kernel from the base distances, assembles the joint kernel over all
+    fibers using the maps, normalizes it, and computes the spectral embedding.
 
     Parameters:
+        base_dist (np.ndarray): Dense (num_samples, num_samples) matrix of base distances.
+        maps (np.ndarray): (num_samples, num_samples) object array of fiber correspondence
+            blocks
         config (HDMConfig): Configuration object specifying HDM parameters.
-        data_samples (list[np.ndarray], optional): List of data arrays (e.g., sampled fibers).
-        base_kernel (coo_matrix, optional): Precomputed base kernel (spatial proximity).
-        fiber_kernel (coo_matrix, optional): Precomputed fiber kernel (fiber similarity).
-        base_distances (coo_matrix, optional): Precomputed base distances.
-        fiber_distances (coo_matrix, optional): Precomputed fiber distances.
 
     Returns:
-        np.ndarray: Diffusion coordinates from the joint HDM embedding.
+        HDMResult: Eigenvectors, eigenvalues, HDM coordinates and HBDD coordinates.
     """
+    validate_dtypes(base_dist, maps, config)
 
+    num_data_samples, sizes = get_sizes(maps)
     backend = get_backend(config)
 
     if config.verbose:
         print("Compute HDM Embedding")
 
-    if base_dist is not None:
-        base_kern, base_idx = backend.compute_base_kernel_with_precomputed_distances(config, base_dist)
-    else:
-        base_kern, base_idx = backend.compute_base_kernel(config, data_samples)
+    base_kern = backend.base_kernel(base_dist, config)
 
     if config.verbose:
         print("Compute base kernel: Done.")
 
-    fiber_kerns, fiber_idxs = backend.compute_fiber_kernels(config, data_samples)
-
-    if config.verbose:
-        print("Compute fiber kernel: Done.")
-
-    joint_kernel = backend.compute_joint_kernel(
-        config, base_kern, base_idx, fiber_kerns, fiber_idxs, maps
+    joint_kernel = backend.joint_kernel(
+        maps, base_kern, num_data_samples, config
     )
     if config.verbose:
         print("Construct Joint Kernel Matrix: Done.")
 
-    block_sizes = [len(s) for s in data_samples]
-    result = backend.spectral_embedding(config, joint_kernel, block_sizes)
+    result = backend.spectral_embedding(config, joint_kernel, sizes, num_data_samples)
     if config.verbose:
         print("Spectral embedding: Done.")
 
