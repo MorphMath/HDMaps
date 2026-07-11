@@ -31,7 +31,7 @@ def base_kernel(base_dist: np.ndarray, config: HDMConfig) -> sp.csr_matrix:
 
 
 
-def full_kernel(maps: np.ndarray, base_kernel: np.ndarray, num_data_samples: int, config: HDMConfig) -> sp.csr_matrix:
+def joint_kernel(maps: np.ndarray, base_kernel: np.ndarray, num_data_samples: int, config: HDMConfig) -> sp.csr_matrix:
     blocks = np.empty_like(maps)
     for i in range(num_data_samples):
         for j in range(num_data_samples):

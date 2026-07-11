@@ -36,7 +36,7 @@ def run_hdm(
     if config.verbose:
         print("Compute base kernel: Done.")
 
-    joint_kernel = backend.full_kernel(
+    joint_kernel = backend.joint_kernel(
         maps, base_kern, num_data_samples, config
     )
     if config.verbose:
