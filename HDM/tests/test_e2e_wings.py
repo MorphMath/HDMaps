@@ -15,14 +15,14 @@ def load_bundle():
 
 def test_e2e_wings_matches_golden():
     base_dist, maps = load_bundle()
-    result = run_hdm(base_dist, maps, HDMConfig(**WINGS_CONFIG))
+    result = run_hdm(HDMConfig(**WINGS_CONFIG), base_dist, maps)
     expected = np.load(FIXTURES_DIR / "wings_expected.npz")
     assert_matches(result, expected)
 
 
 def test_e2e_wings_detects_regression():
     base_dist, maps = load_bundle()
-    result = run_hdm(base_dist, maps, HDMConfig(**WINGS_CONFIG))
+    result = run_hdm(HDMConfig(**WINGS_CONFIG), base_dist, maps)
     perturbed = dict(np.load(FIXTURES_DIR / "wings_expected.npz"))
     perturbed["hbdd"] = perturbed["hbdd"] + 1.0
     try:

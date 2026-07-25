@@ -15,13 +15,15 @@ class HDMConfig(NamedTuple):
     alpha: float = 1.0
     t: float = 1.0
     dtype: type = np.float64
-    
+    eig_tol: float = 1e-6
+
 
 
 class HDMResult(NamedTuple):
     eigvecs: np.ndarray
     eigvals: np.ndarray
     HDM: np.ndarray
+    HBDM: np.ndarray
     HBDD: np.ndarray
 
 
@@ -35,7 +37,7 @@ def torch_dtype(dtype) -> torch.dtype:
     return torch.from_numpy(np.empty(0, dtype=dtype)).dtype
 
 
-def validate_dtypes(base_dist: np.ndarray, maps: np.ndarray, config: HDMConfig):
+def validate_dtypes(config: HDMConfig, base_dist: np.ndarray, maps: np.ndarray):
     expected = np.dtype(config.dtype)
     if base_dist.dtype != expected:
         raise ValueError(f"base_dist is {base_dist.dtype}, expected {expected}")
@@ -45,8 +47,11 @@ def validate_dtypes(base_dist: np.ndarray, maps: np.ndarray, config: HDMConfig):
             if block is not None and block.dtype != expected:
                 raise ValueError(f"maps[{i}][{j}] is {block.dtype}, expected {expected}")
 
+
 def approx_base_eps(D: np.ndarray):
     return np.median(np.max(D, axis=1)) ** 2
+
+
 
 
 def get_sizes(maps: np.ndarray) -> tuple[int, int]:

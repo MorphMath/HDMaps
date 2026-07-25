@@ -3,6 +3,7 @@ import numpy as np
 TEETH_CONFIG = dict(
     base_knn=4,
     num_eigenvectors=4,
+    # eps is a bandwidth now, not a variance; this is the old 0.03 in the new units.
     base_epsilon=0.03,
     device="cpu",
     seed=42,

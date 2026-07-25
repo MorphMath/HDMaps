@@ -34,5 +34,5 @@ def test_gpu_matches_cpu_golden(tag, config):
     bundle = np.load(FIXTURES_DIR / f"{tag}_bundle.npz", allow_pickle=True)
     expected = np.load(FIXTURES_DIR / f"{tag}_expected.npz")
     gpu_config = HDMConfig(**{**config, "device": "cuda"})
-    result = run_hdm(bundle["base_dist"], bundle["maps"], gpu_config)
+    result = run_hdm(gpu_config, bundle["base_dist"], bundle["maps"])
     assert_matches(result, expected, rtol=GPU_RTOL, atol=GPU_ATOL)

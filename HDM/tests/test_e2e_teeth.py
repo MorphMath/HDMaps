@@ -15,14 +15,14 @@ def load_bundle():
 
 def test_e2e_teeth_matches_golden():
     base_dist, maps = load_bundle()
-    result = run_hdm(base_dist, maps, HDMConfig(**TEETH_CONFIG))
+    result = run_hdm(HDMConfig(**TEETH_CONFIG), base_dist, maps)
     expected = np.load(FIXTURES_DIR / "teeth_expected.npz")
     assert_matches(result, expected)
 
 
 def test_e2e_teeth_detects_regression():
     base_dist, maps = load_bundle()
-    result = run_hdm(base_dist, maps, HDMConfig(**TEETH_CONFIG))
+    result = run_hdm(HDMConfig(**TEETH_CONFIG), base_dist, maps)
     perturbed = dict(np.load(FIXTURES_DIR / "teeth_expected.npz"))
     perturbed["hbdd"] = perturbed["hbdd"] + 1.0
     try:
