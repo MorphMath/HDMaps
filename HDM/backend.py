@@ -81,9 +81,8 @@ def _eigsh_scipy(
 
     eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
 
-    eigvals = 1 - eigvals
 
-    idx = np.argsort(eigvals)
+    idx = np.argsort(eigvals)[::-1]
     eigvals = eigvals[idx]
     eigvecs = eigvecs[:, idx]
     return (
@@ -110,8 +109,7 @@ def _eigsh_cupy(
     eigvals = torch.from_dlpack(eigvals_cp)
     eigvecs = torch.from_dlpack(eigvecs_cp)
 
-    eigvals = 1 - eigvals
-    idx = torch.argsort(eigvals)
+    idx = torch.argsort(eigvals, descending=True)
     return eigvals[idx], eigvecs[:, idx]
 
 
