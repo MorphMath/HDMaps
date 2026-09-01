@@ -147,7 +147,7 @@ def main():
 
     np.savez(HERE / "wings_bundle.npz", base_dist=base_dist, maps=maps, names=np.array(names))
 
-    result = run_hdm(base_dist, maps, HDMConfig(**WINGS_CONFIG))
+    result = run_hdm(HDMConfig(**WINGS_CONFIG), base_dist, maps)
     np.savez(HERE / "wings_expected.npz", **golden_outputs(result))
 
     print(f"wings fixture: {N_WINGS} wings, fibre sizes {[maps[i, i].shape[0] for i in range(N_WINGS)]}, "

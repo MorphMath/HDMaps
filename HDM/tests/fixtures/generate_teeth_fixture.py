@@ -46,7 +46,7 @@ def main():
 
     np.savez(HERE / "teeth_bundle.npz", base_dist=base_dist, maps=maps)
 
-    result = run_hdm(base_dist, maps, HDMConfig(**TEETH_CONFIG))
+    result = run_hdm(HDMConfig(**TEETH_CONFIG), base_dist, maps)
     np.savez(HERE / "teeth_expected.npz", **golden_outputs(result))
 
     print(f"teeth fixture: {N_SAMPLES} samples, "
