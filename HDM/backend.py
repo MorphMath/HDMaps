@@ -6,9 +6,6 @@ import torch
 from .utils import HDMConfig, HDMResult, _is_cuda, approx_base_eps, torch_dtype
 
 
-
-
-
 def compute_gaussian_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
     return np.exp(-(dist**2) / eps)
 
@@ -36,13 +33,15 @@ def build_horizontal_diffusion_matrix(
     config: HDMConfig,
     maps: np.ndarray,
     base_kernel: sp.csr_matrix,
+    data_sample_distances: np.ndarray,
     num_data_samples: int
 ) -> sp.csr_matrix:
     blocks = np.full((num_data_samples, num_data_samples), None, dtype=object)
     base_coo = base_kernel.tocoo()
     for i, j, v in zip(base_coo.row, base_coo.col, base_coo.data):
-        blocks[i, j] = maps[i, j] * v
+        blocks[i, j] = maps[i, j] @ data_sample_distances[j] * v
     W = sp.bmat(blocks.tolist(), format='csr')
+    #C = sp.bmat(base_kernel * W, format="csr")
     return (W + W.T) * 0.5
 
 
