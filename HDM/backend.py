@@ -41,6 +41,9 @@ def build_horizontal_diffusion_matrix(
     for i, j, v in zip(base_coo.row, base_coo.col, base_coo.data):
         blocks[i, j] = maps[i, j] @ data_sample_distances[j] * v
     W = sp.bmat(blocks.tolist(), format='csr')
+
+
+    W.data = np.exp(-(W.data ** 2) / config.fiber_epsilon)
     #C = sp.bmat(base_kernel * W, format="csr")
     return (W + W.T) * 0.5
 

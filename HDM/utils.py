@@ -6,6 +6,7 @@ import torch
 
 class HDMConfig(NamedTuple):
     base_epsilon: float | None = None
+    fiber_epsilon: float | None = None
     num_eigenvectors: int = 5
     device: torch.device = torch.device("cpu")
     base_metric: str = "frobenius"
@@ -47,6 +48,8 @@ def validate_dtypes(config: HDMConfig, base_dist: np.ndarray, maps: np.ndarray):
             if block is not None and block.dtype != expected:
                 raise ValueError(f"maps[{i}][{j}] is {block.dtype}, expected {expected}")
 
+    if config.fiber_epsilon is None:
+        raise ValueError(f"Fiber epsilon is {None} expected float")
 
 def approx_base_eps(D: np.ndarray):
     return np.median(np.max(D, axis=1)) ** 2
