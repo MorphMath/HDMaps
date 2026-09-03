@@ -149,13 +149,21 @@ def compute_spectral_embedding(
 
     HBDM = torch.zeros((num_data_samples, num_eig**2), dtype=V.dtype, device=V.device)
 
-    for i in range(num_data_samples):
-        HBDM[i] = (V_scaled[offsets[i]:offsets[i+1]].T @ V_scaled[offsets[i]:offsets[i+1]]).ravel()
+    # for i in range(num_data_samples):
+    #     HBDM[i] = (V_scaled[offsets[i]:offsets[i+1]].T @ V_scaled[offsets[i]:offsets[i+1]]).ravel()
+    #
+    sizes_t  = torch.as_tensor(sizes, device=V.device)
+    offs     = torch.as_tensor(offsets[:-1], device=V.device)
+    group    = torch.repeat_interleave(torch.arange(num_data_samples, device=V.device), sizes_t)
+    row      = torch.arange(len(group), device=V.device) - offs[group]
+
+    padded = torch.zeroes((num_data_samples, int(sizes_t.max()), num_eig), device=V_scaled.device, dtype=V_scaled.dtype)
+    padded[group, row] = V_scaled
+
+    HBDM = (padded.mT @ padded).reshape(num_data_samples, num_eig**2)
+
 
 
     HBDD = torch.cdist(HBDM, HBDM)
 
     return HDMResult(V.cpu().numpy(), vals.cpu().numpy(), HDM.cpu().numpy(), HBDM.cpu().numpy(), HBDD.cpu().numpy())
-
-def gram(V):
-    return V.T @ V
