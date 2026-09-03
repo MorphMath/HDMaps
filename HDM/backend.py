@@ -142,26 +142,12 @@ def compute_spectral_embedding(
 
     HDM = V * (vals ** config.t)
 
-
     V_scaled = (vals ** (config.t/2)) * V
 
     HBDM = torch.zeros((num_data_samples, num_eig**2), dtype=V.dtype, device=V.device)
 
-    print(10)
     for i in range(num_data_samples):
         HBDM[i] = (V_scaled[offsets[i]:offsets[i+1]].T @ V_scaled[offsets[i]:offsets[i+1]]).ravel()
-    print(11)
-    # sizes_t  = torch.as_tensor(sizes, device=V.device)
-    # offs     = torch.as_tensor(offsets[:-1], device=V.device)
-    # group    = torch.repeat_interleave(torch.arange(num_data_samples, device=V.device), sizes_t)
-    # row      = torch.arange(len(group), device=V.device) - offs[group]
-
-    # padded = torch.zeros((num_data_samples, int(sizes_t.max()), num_eig), device=V_scaled.device, dtype=V_scaled.dtype)
-    # padded[group, row] = V_scaled
-
-    # HBDM = (padded.mT @ padded).reshape(num_data_samples, num_eig**2)
-
-
 
     HBDD = torch.cdist(HBDM, HBDM)
 
