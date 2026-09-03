@@ -39,11 +39,13 @@ def build_horizontal_diffusion_matrix(
     blocks = np.full((num_data_samples, num_data_samples), None, dtype=object)
     base_coo = base_kernel.tocoo()
     for i, j, v in zip(base_coo.row, base_coo.col, base_coo.data):
-        blocks[i, j] = maps[i, j] @ data_sample_distances[j] * v
+        mapped_dists = maps[i, j] @ data_sample_distances[j]
+        mapped_dists.data = np.exp(-(mapped_dists.data ** 2) / config.fiber_epsilon)
+        blocks[i, j] = mapped_dists * v
     W = sp.bmat(blocks.tolist(), format='csr')
 
 
-    W.data = np.exp(-(W.data ** 2) / config.fiber_epsilon)
+    #W.data = np.exp(-(W.data ** 2) / config.fiber_epsilon)
     #C = sp.bmat(base_kernel * W, format="csr")
     return (W + W.T) * 0.5
 
