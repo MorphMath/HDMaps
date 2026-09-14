@@ -150,8 +150,12 @@ def compute_spectral_embedding(
     HBDM = torch.zeros((num_data_samples, num_eig**2), dtype=V.dtype, device=V.device)
 
     for i in range(num_data_samples):
+        # scale = np.sqrt(offsets[i+1] - offsets[i])
+        # data = V_scaled[offsets[i]:offsets[i+1]] / scale
+
+        # HBDM[i] = (data.T @ data).ravel()
         HBDM[i] = (V_scaled[offsets[i]:offsets[i+1]].T @ V_scaled[offsets[i]:offsets[i+1]]).ravel()
 
     HBDD = torch.cdist(HBDM, HBDM)
 
-    return HDMResult(V.cpu().numpy(), vals.cpu().numpy(), HDM.cpu().numpy(), HBDM.cpu().numpy(), HBDD.cpu().numpy())
+    return HDMResult(V.cpu().numpy(), vals.cpu().numpy(), HDM.cpu().numpy(), HBDM.cpu().numpy(), HBDD.cpu().numpy(), offsets, config)
