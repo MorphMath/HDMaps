@@ -6,7 +6,7 @@
 
 ## What is HDMaps?
 
-HDM extends diffusion maps to collections of related data objects — shapes, images, point clouds — each carrying its own internal structure. It models the collection as a *fibre bundle*: a base manifold capturing how objects relate to one another, and a fibre over each point representing that object's structure as a noisy realization of a shared template. A random walk on the base is *lifted* across the fibres via correspondences between neighbouring objects, letting HDM organize the objects while consistently registering their internal structure into a shared coordinate system.
+HDM extends diffusion maps to collections of related data objects, such as a shape or image collection. A random walk on the collection (the base) is lifted through correspondence maps across each object's internal structure (the fiber). This produces a shared coordinate system that jointly embeds each object's internal structure and the pairwise relations between objects.
 
 <p align="center">
   <img src="media/hdm_demo.gif" width="600" alt="A random walk on a neighbor graph on the base manifold, lifted through the fibres">
