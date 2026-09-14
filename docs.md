@@ -10,9 +10,8 @@ To install the latest development version of `HDM_Python` run:
 pip install git+https://github.com/MorphMath/HDMaps
 ```
 
-## What is HDMaps?
+## Introduction to Horizontal Diffusion Maps
 
-HDM extends diffusion maps to collections of related data objects — shapes, images, point clouds — each carrying its own internal structure. It models the collection as a *fibre bundle*: a base manifold capturing how objects relate to one another, and a fibre over each point representing that object's structure as a noisy realization of a shared template. A random walk on the base is *lifted* across the fibres via correspondences between neighbouring objects, letting HDM organize the objects while consistently registering their internal structure into a shared coordinate system.
 
 <p align="center">
   <img src="media/hdm_demo.gif" width="600" alt="A random walk on a neighbor graph on the base manifold, lifted through the fibres">
@@ -20,11 +19,8 @@ HDM extends diffusion maps to collections of related data objects — shapes, im
   <sub><em>A random walk on a neighbor graph on the base manifold (top) lifted through the fibres (bottom): hopping between objects moves to the corresponding point on each object's structure.</em></sub>
 </p>
 
-<!-- TODO: expand into a more in-depth, still-intuitive explanation of Horizontal Diffusion Maps -->
 
 ## Usage
-To make effective use of this package the documentation, it is recommended to have a basic understanding of Horizontal Diffusions Maps,
-as introduced in the paper: [The diffusion geometry of fibre bundles: Horizontal diffusion maps](https://www.sciencedirect.com/science/article/pii/S1063520318302215).
 
 To get started using HDM_Python, add the following import to the top of your Python file:
 ```python
