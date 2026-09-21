@@ -39,7 +39,7 @@ class CylinderMaps(MobiusMaps):
         return eye
 
 
-config = HDMConfig(base_epsilon=4, fiber_epsilon=1, alpha=0.0, num_eigenvectors=40)
+config = HDMConfig(base_epsilon=4, fiber_epsilon=1, num_eigenvectors=40)
 
 results = {
     "Möbius": run_hdm(config, base_dist, MobiusMaps(n), fiber_dists),

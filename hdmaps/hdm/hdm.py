@@ -27,7 +27,7 @@ def run_hdm(
         HDMResult: Eigenvectors, eigenvalues, HDM coordinates and HBDD coordinates.
     """
 
-    validate_dtypes(config, base_dist, maps)
+    # validate_dtypes(config, base_dist, maps)
 
 
     num_data_samples, sizes = get_sizes(maps)
@@ -43,7 +43,7 @@ def run_hdm(
 
 
     horizontal_diffusion_matrix = backend.build_horizontal_diffusion_matrix(
-        config, maps, base_kern, fiber_dists, num_data_samples
+        config, maps, base_kern, fiber_dists
     )
     if config.verbose:
         print("Construct Joint Kernel Matrix: Done.")

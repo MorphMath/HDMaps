@@ -3,49 +3,58 @@ import scipy.sparse as sp
 from sklearn.neighbors import NearestNeighbors
 import torch
 
-from .utils import HDMConfig, HDMResult, _is_cuda, approx_base_eps, torch_dtype
+from .utils import HDMConfig, HDMResult, _is_cuda, approx_base_eps, torch_dtype, Indexable2D, Indexable
 
 
-def compute_gaussian_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
+
+def apply_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
     return np.exp(-(dist**2) / eps)
 
 
-def build_base_kernel(config: HDMConfig, base_dist: np.ndarray) -> sp.csr_matrix:
-    nn = NearestNeighbors(n_neighbors=config.base_knn+1, metric="precomputed").fit(base_dist)
-    knn = nn.kneighbors_graph(base_dist, mode="distance")
+def symmetrize(A):
+    return (A + A.T) * 0.5
 
-    assert not knn.diagonal().any()
-    knn.eliminate_zeros()
-    knn.data = knn.data.astype(config.dtype, copy=False)
 
+def build_base_kernel(config: HDMConfig, base_dist: sp.csr_matrix) -> sp.csr_matrix:
+    coo = base_dist.tocoo()
+    assert not (coo.row == coo.col).any()
+
+    base_kernel = base_dist.astype(config.dtype)
 
     if config.base_epsilon is None:
         config = config._replace(base_epsilon=approx_base_eps(base_dist))
 
-    knn.data = compute_gaussian_kernel(knn.data, config.base_epsilon)
+    base_kernel.data = apply_kernel(base_kernel.data, config.base_epsilon)
 
-    return (knn + knn.T) * 0.5
+    base_kernel = symmetrize(base_kernel)
+    assert (np.diff(base_kernel.indptr) > 0).all()
+    return base_kernel
 
 
 
 def build_horizontal_diffusion_matrix(
     config: HDMConfig,
-    maps: np.ndarray,
+    maps: Indexable2D[sp.csr_matrix],
     base_kernel: sp.csr_matrix,
-    fiber_dists: np.ndarray,
-    num_data_samples: int
+    fiber_dists: Indexable[sp.csr_matrix],
 ) -> sp.csr_matrix:
+
+    num_data_samples = len(fiber_dists)
+
+    for j in range(num_data_samples):
+        f = fiber_dists[j]
+        rows = np.repeat(np.arange(f.shape[0]), np.diff(f.indptr))
+        assert (rows == f.indices).sum() == f.shape[0], f"fiber {j}: diagonal not fully stored"
+
+
     blocks = np.full((num_data_samples, num_data_samples), None, dtype=object)
     base_coo = base_kernel.tocoo()
-
-    for i in range(len(fiber_dists)):
-        fiber_dists[i].eliminate_zeros()
-        fiber_dists[i].setdiag(0.0)
 
     for i, j, v in zip(base_coo.row, base_coo.col, base_coo.data):
         mapped_dists = maps[i, j] @ fiber_dists[j]
         mapped_dists.data = np.exp(-(mapped_dists.data ** 2) / config.fiber_epsilon)
         blocks[i, j] = mapped_dists * v
+
     W = sp.bmat(blocks.tolist(), format='csr')
 
     return (W + W.T) * 0.5
@@ -72,7 +81,12 @@ def _normalize(config: HDMConfig, W: sp.csr_matrix) -> tuple[sp.csr_matrix, np.n
 
     D_a_inv_sqrt = sp.diags(d_a_inv_sqrt, format="csr")
     A = D_a_inv_sqrt @ W_a @ D_a_inv_sqrt
+    # A = 0.5 * (A + sp.identity(A.shape[0], format="csr"))
     return A, d_a_inv_sqrt
+
+    # D_a_inv_sqrt = sp.diags(d_a_inv_sqrt, format="csr")
+    # A = D_a_inv_sqrt @ W_a @ D_a_inv_sqrt
+    # return A, d_a_inv_sqrt
 
 
 def _eigsh_scipy(
@@ -84,7 +98,9 @@ def _eigsh_scipy(
     rng = np.random.default_rng(config.seed)
     v0 = rng.random(n, dtype=config.dtype)
 
-    eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
+    eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LA", tol=config.eig_tol, v0=v0)
+
+    # eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
 
 
     idx = np.argsort(eigvals)[::-1]

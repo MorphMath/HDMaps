@@ -32,7 +32,7 @@ dependencies = [
 Homepage = "https://github.com/frisbro303/HDM_Python"
 
 [tool.setuptools.packages.find]
-include = ["HDM*"]
+include = ["hdmaps*"]
 
 
 [project.optional-dependencies]
@@ -45,7 +45,7 @@ gpu = [
 ]   
 
 [tool.pytest.ini_options]
-testpaths = ["HDM/tests"]
+testpaths = ["hdm/tests"]
 markers = [
     "gpu: end-to-end tests requiring a CUDA GPU with cupy (run with -m gpu; skipped otherwise)",
 ]
