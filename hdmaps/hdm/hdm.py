@@ -38,7 +38,7 @@ def run_hdm(
         HDMResult: Eigenvectors, eigenvalues, HDM coordinates and HBDD coordinates.
     """
 
-    # validate_dtypes(config, base_dist, maps)
+    validate_dtypes(config, base_dist, maps)
 
 
     num_data_samples, sizes = get_sizes(maps)
