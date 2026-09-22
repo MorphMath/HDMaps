@@ -43,8 +43,8 @@ results = {
     "Cylinder": run_hdm(config, base_dist, cylinder_bundle, fiber_dists),
 }
 
-# print(results["Mobius"].eigvals)
-# print(results["Cylinder"].eigvals)
+print(results["Mobius"].eigvals)
+print(results["Cylinder"].eigvals)
 
 U, V = np.meshgrid(theta, t, indexing="ij")
 surfaces = {

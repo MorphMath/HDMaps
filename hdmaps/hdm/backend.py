@@ -76,28 +76,15 @@ def build_horizontal_diffusion_matrix(
 
 
 def _normalize(config: HDMConfig, W: sp.csr_matrix) -> tuple[sp.csr_matrix, np.ndarray]:
-    d = np.asarray(W.sum(axis=1)).ravel()
-
-    if np.any(d <= 0):
-        print("d has an entry that is less or equal to 0, this indicates a problem with the kernel")
-    d_pow_a = np.zeros_like(d)
-    np.power(d, -config.alpha, out=d_pow_a, where=d>0)
-
-    D_neg_pow_a = sp.diags(d_pow_a, format="csr")
-
-    W_a = D_neg_pow_a @ W @ D_neg_pow_a
-    D_a = np.asarray(W_a.sum(axis=1)).ravel()
-
-    if np.any(D_a <= 0):
-        print("D_a has an entry that is less or equal to 0, this indicates a problem")
-    d_a_inv_sqrt = np.zeros_like(D_a)
-    d_a_inv_sqrt = np.sqrt(D_a)
-    np.reciprocal(d_a_inv_sqrt, out=d_a_inv_sqrt, where=d_a_inv_sqrt > 0)
-
-    D_a_inv_sqrt = sp.diags(d_a_inv_sqrt, format="csr")
-    A = D_a_inv_sqrt @ W_a @ D_a_inv_sqrt
-    return A, d_a_inv_sqrt
-
+    d = np.ones(W.shape[0], dtype=W.dtype)
+    for _ in range(config.sinkhorn_max_iter):
+        d_new = np.sqrt(d / (W @ d))
+        done = np.max(np.abs(d_new - d)) < config.sinkhorn_tol
+        d = d_new
+        if done:
+            break
+    D = sp.diags(d, format="csr")
+    return D @ W @ D, np.ones_like(d)
 
 
 def _eigsh_scipy(
