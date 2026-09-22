@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import scipy.sparse as sp
 
-
 from hdmaps.mappings import MapBundle
 
 
@@ -17,11 +16,11 @@ class HDMConfig(NamedTuple):
     base_metric: str = "frobenius"
     verbose: bool = True
     seed: int = 67
-    alpha: float = 1.0
     t: float = 1.0
     dtype: type = np.float64
     eig_tol: float = 1e-8
-
+    sinkhorn_max_iter: int = 1000
+    sinkhorn_tol: float = 1e-10
 
 
 class HDMResult(NamedTuple):
