@@ -46,9 +46,10 @@ def _mapped_fiber_kernel(M, F: sp.csr_matrix, eps: float) -> sp.csr_matrix:
     F_pat = F.copy()
     F_pat.data = np.ones_like(F_pat.data)
 
-    pat = (M_pat @ F_pat).tocoo()
-    dists = np.asarray((M @ F).tocsr()[pat.row, pat.col]).ravel()
+    pat = sp.coo_matrix(M_pat @ F_pat)
+    dists = np.asarray(sp.csr_matrix(M @ F)[pat.row, pat.col]).ravel()
 
+    assert M.shape is not None and F.shape is not None
     return sp.csr_matrix(
         (apply_kernel(dists, eps), (pat.row, pat.col)),
         shape=(M.shape[0], F.shape[1]),
@@ -86,6 +87,7 @@ def build_horizontal_diffusion_matrix(
 
 
 def _normalize(config: HDMConfig, W: sp.csr_matrix) -> sp.csr_matrix:
+    assert W.shape is not None
     d = np.ones(W.shape[0], dtype=W.dtype)
     for _ in range(config.sinkhorn_max_iter):
         d_new = np.sqrt(d / (W @ d))
@@ -98,7 +100,6 @@ def _normalize(config: HDMConfig, W: sp.csr_matrix) -> sp.csr_matrix:
             print(f"Sinkhorn iteration did not converge after {config.sinkhorn_max_iter} iterations")
     D = sp.diags(d, format="csr")
     return D @ W @ D
-
 
 
 def _eigsh_scipy(
