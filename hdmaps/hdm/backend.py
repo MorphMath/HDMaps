@@ -100,6 +100,7 @@ def _normalize(config: HDMConfig, W: sp.csr_matrix) -> sp.csr_matrix:
     return D @ W @ D
 
 
+
 def _eigsh_scipy(
     config: HDMConfig,
     kernel: sp.csr_matrix,

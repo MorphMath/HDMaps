@@ -4,10 +4,10 @@ import numpy as np
 import torch
 import scipy.sparse as sp
 
-
 from hdmaps.mappings import MapBundle
 
 
+        
 class HDMConfig(NamedTuple):
     base_epsilon: float | None = None
     fiber_epsilon: float | None = None
