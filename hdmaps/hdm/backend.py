@@ -15,7 +15,6 @@ from hdmaps.types import Indexable
 from hdmaps.mappings import MapBundle
 
 
-
 def apply_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
     return np.exp(-(dist**2) / eps)
 
@@ -39,7 +38,6 @@ def build_base_kernel(config: HDMConfig, base_dist: sp.csr_matrix) -> sp.csr_mat
     base_kernel = symmetrize(base_kernel)
     assert (np.diff(base_kernel.indptr) > 0).all()
     return base_kernel
-
 
 
 def build_horizontal_diffusion_matrix(
