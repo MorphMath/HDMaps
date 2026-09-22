@@ -1,0 +1,6 @@
+from typing import Protocol
+
+
+class Indexable[T](Protocol):
+    def __getitem__(self, key: int, /) -> T: ...
+    def __len__(self) -> int: ...

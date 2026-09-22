@@ -3,7 +3,16 @@ import scipy.sparse as sp
 from sklearn.neighbors import NearestNeighbors
 import torch
 
-from .utils import HDMConfig, HDMResult, _is_cuda, approx_base_eps, torch_dtype, Indexable2D, Indexable
+from .utils import (
+    HDMConfig,
+    HDMResult,
+    _is_cuda,
+    approx_base_eps,
+    torch_dtype,
+)
+
+from hdmaps.types import Indexable
+from hdmaps.mappings import MapBundle
 
 
 
@@ -21,10 +30,11 @@ def build_base_kernel(config: HDMConfig, base_dist: sp.csr_matrix) -> sp.csr_mat
 
     base_kernel = base_dist.astype(config.dtype)
 
-    if config.base_epsilon is None:
-        config = config._replace(base_epsilon=approx_base_eps(base_dist))
+    base_epsilon = config.base_epsilon
+    if base_epsilon is None:
+        base_epsilon = approx_base_eps(base_dist)
 
-    base_kernel.data = apply_kernel(base_kernel.data, config.base_epsilon)
+    base_kernel.data = apply_kernel(base_kernel.data, base_epsilon)
 
     base_kernel = symmetrize(base_kernel)
     assert (np.diff(base_kernel.indptr) > 0).all()
@@ -34,15 +44,20 @@ def build_base_kernel(config: HDMConfig, base_dist: sp.csr_matrix) -> sp.csr_mat
 
 def build_horizontal_diffusion_matrix(
     config: HDMConfig,
-    maps: Indexable2D[sp.csr_matrix],
+    maps: MapBundle,
     base_kernel: sp.csr_matrix,
     fiber_dists: Indexable[sp.csr_matrix],
 ) -> sp.csr_matrix:
+
+    fiber_epsilon = config.fiber_epsilon
+    if fiber_epsilon is None:
+        raise ValueError("fiber_epsilon must be set")
 
     num_data_samples = len(fiber_dists)
 
     for j in range(num_data_samples):
         f = fiber_dists[j]
+        assert f.shape is not None
         rows = np.repeat(np.arange(f.shape[0]), np.diff(f.indptr))
         assert (rows == f.indices).sum() == f.shape[0], f"fiber {j}: diagonal not fully stored"
 
@@ -51,8 +66,8 @@ def build_horizontal_diffusion_matrix(
     base_coo = base_kernel.tocoo()
 
     for i, j, v in zip(base_coo.row, base_coo.col, base_coo.data):
-        mapped_dists = maps[i, j] @ fiber_dists[j]
-        mapped_dists.data = np.exp(-(mapped_dists.data ** 2) / config.fiber_epsilon)
+        mapped_dists = sp.csr_matrix(maps[i, j] @ fiber_dists[j])
+        mapped_dists.data = np.exp(-(mapped_dists.data ** 2) / fiber_epsilon)
         blocks[i, j] = mapped_dists * v
 
     W = sp.bmat(blocks.tolist(), format='csr')
@@ -74,33 +89,28 @@ def _normalize(config: HDMConfig, W: sp.csr_matrix) -> tuple[sp.csr_matrix, np.n
     D_a = np.asarray(W_a.sum(axis=1)).ravel()
 
     if np.any(D_a <= 0):
-        print("D_a has an entry that is less or equal to 0, this indicates a problem with then")
+        print("D_a has an entry that is less or equal to 0, this indicates a problem")
     d_a_inv_sqrt = np.zeros_like(D_a)
     d_a_inv_sqrt = np.sqrt(D_a)
     np.reciprocal(d_a_inv_sqrt, out=d_a_inv_sqrt, where=d_a_inv_sqrt > 0)
 
     D_a_inv_sqrt = sp.diags(d_a_inv_sqrt, format="csr")
     A = D_a_inv_sqrt @ W_a @ D_a_inv_sqrt
-    # A = 0.5 * (A + sp.identity(A.shape[0], format="csr"))
     return A, d_a_inv_sqrt
 
-    # D_a_inv_sqrt = sp.diags(d_a_inv_sqrt, format="csr")
-    # A = D_a_inv_sqrt @ W_a @ D_a_inv_sqrt
-    # return A, d_a_inv_sqrt
 
 
 def _eigsh_scipy(
     config: HDMConfig,
     kernel: sp.csr_matrix,
     k: int,
-) -> tuple[sp.csr_matrix, sp.csr_matrix]:
+) -> tuple[torch.Tensor, torch.Tensor]:
+    assert kernel.shape is not None
     n = kernel.shape[0]
     rng = np.random.default_rng(config.seed)
     v0 = rng.random(n, dtype=config.dtype)
 
     eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LA", tol=config.eig_tol, v0=v0)
-
-    # eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
 
 
     idx = np.argsort(eigvals)[::-1]
@@ -117,12 +127,13 @@ def _eigsh_cupy(
     kernel: sp.csr_matrix,
     k: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    import cupy as cp
-    import cupyx.scipy.sparse.linalg as cpx_linalg
-    import cupyx.scipy.sparse as cpsp
+    import cupy as cp  # type: ignore[import-not-found]
+    import cupyx.scipy.sparse.linalg as cpx_linalg  # type: ignore[import-not-found]
+    import cupyx.scipy.sparse as cpsp  # type: ignore[import-not-found]
 
     kernel = cpsp.csr_matrix(kernel)
 
+    assert kernel.shape is not None
     n = kernel.shape[0]
     v0 = cp.array(np.random.default_rng(config.seed).random(n), dtype=kernel.dtype)
 
@@ -137,7 +148,7 @@ def _eigsh_cupy(
 
 def compute_spectral_embedding(
     config: HDMConfig,
-    joint_kernel: torch.Tensor,
+    joint_kernel: sp.csr_matrix,
     sizes: list[int],
     num_data_samples: int,
 ) -> HDMResult:
@@ -151,13 +162,13 @@ def compute_spectral_embedding(
     else:
         vals, V = _eigsh_scipy(config, normalized_kernel, num_eig)
 
-    d_a_inv_sqrt = torch.as_tensor(d_a_inv_sqrt, dtype=V.dtype, device=V.device)
+    d_a_inv_sqrt_t = torch.as_tensor(d_a_inv_sqrt, dtype=V.dtype, device=V.device)
 
     vals = vals[1 : num_eig + 1]
 
     V = V[:, 1 : num_eig + 1]
 
-    V = d_a_inv_sqrt[:, None] * V
+    V = d_a_inv_sqrt_t[:, None] * V
 
     HDM = V * (vals ** config.t)
 
@@ -166,10 +177,6 @@ def compute_spectral_embedding(
     HBDM = torch.zeros((num_data_samples, num_eig**2), dtype=V.dtype, device=V.device)
 
     for i in range(num_data_samples):
-        # scale = np.sqrt(offsets[i+1] - offsets[i])
-        # data = V_scaled[offsets[i]:offsets[i+1]] / scale
-
-        # HBDM[i] = (data.T @ data).ravel()
         HBDM[i] = (V_scaled[offsets[i]:offsets[i+1]].T @ V_scaled[offsets[i]:offsets[i+1]]).ravel()
 
     HBDD = torch.cdist(HBDM, HBDM)

@@ -1,13 +1,24 @@
 import numpy as np
 
-from .utils import HDMConfig, HDMResult, get_backend, get_sizes, validate_dtypes
+import scipy.sparse as sp
+
+from .utils import (
+    HDMConfig,
+    HDMResult,
+    get_backend,
+    get_sizes,
+    validate_dtypes,
+)
+
+from hdmaps.types import Indexable
+from hdmaps.mappings import MapBundle
 
 
 def run_hdm(
     config: HDMConfig,
-    base_dist: np.ndarray,
-    maps: np.ndarray,
-    fiber_dists: np.ndarray,
+    base_dist: sp.csr_matrix,
+    maps: MapBundle,
+    fiber_dists: Indexable,
 ) -> HDMResult:
     """
     Computes the Horizontal Diffusion Maps (HDM) and Horizontal Base Diffusion Distance (HBDD) from precomputed base distances and fiber maps.

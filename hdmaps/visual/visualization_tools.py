@@ -1,5 +1,5 @@
 import numpy as np
-import pyvista as pv
+import pyvista as pv # type: ignore[import-not-found]
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 

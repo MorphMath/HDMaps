@@ -3,6 +3,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from hdmaps.hdm import HDMConfig, run_hdm
+from hdmaps.mappings import MapBundle
 
 n, m, k = 40, 9, 4
 
@@ -20,35 +21,34 @@ r, c = np.indices((m, m)).reshape(2, -1)
 fiber = sp.csr_matrix((F.ravel(), (r, c)), shape=(m, m))
 fiber_dists = [fiber.copy() for _ in range(n)]
 
-eye = sp.identity(m, format="csr")
+eye = sp.csr_matrix(sp.identity(m, format="csr"))
 flip = sp.csr_matrix(np.eye(m)[::-1])
 
 
-class MobiusMaps:
-    def __init__(self, n):
-        self.n = n
-        self.shape = (n, n)
-
-    def __getitem__(self, key):
-        i, j = key
-        return flip if abs(i - j) > self.n // 2 else eye
+def mobius_map_f(i: int, j: int) -> sp.csr_matrix:
+    return flip if abs(i - j) > n // 2 else eye
 
 
-class CylinderMaps(MobiusMaps):
-    def __getitem__(self, key):
-        return eye
+def cylinder_map_f(i: int, j: int) -> sp.csr_matrix:
+    return eye
 
+
+mobius_bundle = MapBundle(compute_map_f=mobius_map_f, data=list(range(n)))
+cylinder_bundle = MapBundle(compute_map_f=cylinder_map_f, data=list(range(n)))
 
 config = HDMConfig(base_epsilon=4, fiber_epsilon=1, num_eigenvectors=40)
 
 results = {
-    "Möbius": run_hdm(config, base_dist, MobiusMaps(n), fiber_dists),
-    "Cylinder": run_hdm(config, base_dist, CylinderMaps(n), fiber_dists),
+    "Mobius": run_hdm(config, base_dist, mobius_bundle, fiber_dists),
+    "Cylinder": run_hdm(config, base_dist, cylinder_bundle, fiber_dists),
 }
+
+# print(results["Mobius"].eigvals)
+# print(results["Cylinder"].eigvals)
 
 U, V = np.meshgrid(theta, t, indexing="ij")
 surfaces = {
-    "Möbius": (
+    "Mobius": (
         (1 + V / 2 * np.cos(U / 2)) * np.cos(U),
         (1 + V / 2 * np.cos(U / 2)) * np.sin(U),
         V / 2 * np.sin(U / 2),
