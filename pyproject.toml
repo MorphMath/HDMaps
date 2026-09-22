@@ -11,7 +11,7 @@ authors = [
 ]
 description = "HDM description"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -38,14 +38,15 @@ include = ["hdmaps*"]
 [project.optional-dependencies]
 dev = [
     "pytest>=9,<10",
-    "psutil>=7,<8"
+    "psutil>=7,<8",
+    "pyright>=1.1,<2.0"
 ]
 gpu = [                                                                                                                                                                             
     "cupy-cuda13x>=13.0",                                                                                                                                                    
 ]   
 
 [tool.pytest.ini_options]
-testpaths = ["hdm/tests"]
+testpaths = ["tests"]
 markers = [
     "gpu: end-to-end tests requiring a CUDA GPU with cupy (run with -m gpu; skipped otherwise)",
 ]
