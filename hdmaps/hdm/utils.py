@@ -6,8 +6,7 @@ import scipy.sparse as sp
 
 from hdmaps.mappings import MapBundle
 
-
-        
+      
 class HDMConfig(NamedTuple):
     base_epsilon: float | None = None
     fiber_epsilon: float | None = None
@@ -20,7 +19,8 @@ class HDMConfig(NamedTuple):
     dtype: type = np.float64
     eig_tol: float = 1e-8
     sinkhorn_max_iter: int = 1000
-    sinkhorn_tol: float = 1e-10
+    sinkhorn_tol: float = 1e-8
+    sinkhorn_jitter: float = 1e-8
 
 
 class HDMResult(NamedTuple):
