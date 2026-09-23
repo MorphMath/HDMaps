@@ -142,7 +142,7 @@ def _eigsh_cupy(
     n = kernel.shape[0]
     v0 = cp.array(np.random.default_rng(config.seed).random(n), dtype=kernel.dtype)
 
-    eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(kernel, k=k + 1, which="LA", tol=config.eig_tol, v0=v0)
+    eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
     eigvals = 2 * torch.from_dlpack(eigvals_cp) - 1
     eigvecs = torch.from_dlpack(eigvecs_cp)
 
