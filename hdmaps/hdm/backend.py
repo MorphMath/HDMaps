@@ -88,18 +88,22 @@ def build_horizontal_diffusion_matrix(
 
 def _normalize(config: HDMConfig, W: sp.csr_matrix) -> sp.csr_matrix:
     assert W.shape is not None
-    d = np.ones(W.shape[0], dtype=W.dtype)
+    n = W.shape[0]
+    I = sp.eye(n, dtype=W.dtype, format="csr")
+    if config.sinkhorn_jitter > 0:
+        W = W + config.sinkhorn_jitter * I
+    d = np.ones(n, dtype=W.dtype)
     for _ in range(config.sinkhorn_max_iter):
-        d_new = np.sqrt(d / (W @ d))
-        done = np.max(np.abs(d_new - d)) < config.sinkhorn_tol
-        d = d_new
-        if done:
+        Wd = W @ d
+        if np.max(np.abs(d * Wd - 1)) < config.sinkhorn_tol:
             break
+        d = np.sqrt(d / Wd)
     else:
         if config.verbose:
             print(f"Sinkhorn iteration did not converge after {config.sinkhorn_max_iter} iterations")
     D = sp.diags(d, format="csr")
-    return D @ W @ D
+    Q = D @ W @ D
+    return 0.5 * (Q + I)
 
 
 def _eigsh_scipy(
@@ -112,10 +116,10 @@ def _eigsh_scipy(
     rng = np.random.default_rng(config.seed)
     v0 = rng.random(n, dtype=config.dtype)
 
-    eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LA", tol=config.eig_tol, v0=v0)
+    eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
 
     idx = np.argsort(eigvals)[::-1]
-    eigvals = eigvals[idx]
+    eigvals = 2 * eigvals[idx] - 1
     eigvecs = eigvecs[:, idx]
     return (
         torch.as_tensor(eigvals, dtype=torch_dtype(config.dtype), device=config.device),
@@ -138,8 +142,8 @@ def _eigsh_cupy(
     n = kernel.shape[0]
     v0 = cp.array(np.random.default_rng(config.seed).random(n), dtype=kernel.dtype)
 
-    eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(kernel, k=k + 1, which="LA", tol=config.eig_tol, v0=v0)
-    eigvals = torch.from_dlpack(eigvals_cp)
+    eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
+    eigvals = 2 * torch.from_dlpack(eigvals_cp) - 1
     eigvecs = torch.from_dlpack(eigvecs_cp)
 
     idx = torch.argsort(eigvals, descending=True)
