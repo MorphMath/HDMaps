@@ -70,9 +70,8 @@ def get_sizes(fiber_dists: Indexable[sp.csr_matrix]) -> tuple[int, list[int]]:
 
 def approx_base_eps(D: sp.csr_matrix) -> float:
     row_max = np.asarray(D.max(axis=1).todense()).ravel()
-    return float(np.median(row_max) ** 2)
+    return float(np.median(row_max))
 
 
 def _is_cuda(device: torch.device | str) -> bool:
     return torch.device(device).type == "cuda"
-
