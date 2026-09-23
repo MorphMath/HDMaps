@@ -2,6 +2,9 @@ import numpy as np
 import scipy.sparse as sp
 import torch
 
+from hdmaps.mappings import MapBundle
+from hdmaps.types import Indexable
+
 from .utils import (
     HDMConfig,
     HDMResult,
@@ -10,12 +13,9 @@ from .utils import (
     torch_dtype,
 )
 
-from hdmaps.types import Indexable
-from hdmaps.mappings import MapBundle
-
 
 def apply_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
-    return np.exp(-(dist**2) / eps)
+    return np.exp(-(dist**2) / eps ** 2)
 
 
 def symmetrize(A):
@@ -133,8 +133,8 @@ def _eigsh_cupy(
     k: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     import cupy as cp  # type: ignore[import-not-found]
-    import cupyx.scipy.sparse.linalg as cpx_linalg  # type: ignore[import-not-found]
     import cupyx.scipy.sparse as cpsp  # type: ignore[import-not-found]
+    import cupyx.scipy.sparse.linalg as cpx_linalg  # type: ignore[import-not-found]
 
     kernel = cpsp.csr_matrix(kernel)
 

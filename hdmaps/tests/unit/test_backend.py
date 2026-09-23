@@ -1,4 +1,5 @@
 import numpy as np
+
 from hdmaps.hdm.backend import apply_kernel
 
 
