@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import scipy.sparse as sp
 
 from hdmaps.hdm import HDMConfig
@@ -21,8 +22,8 @@ def test_apply_kernel_zero_distance():
 def test_mapped_fiber_kernel_keeps_zero_distances():
     # row 0 maps hard onto point 0, whose only mapped distance is F's stored zero diagonal
     M = sp.csr_matrix(np.array([[1.0, 0.0, 0.0], [0.0, 0.5, 0.5]]))
-    F = sp.csr_matrix((np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 0.0]),
-                       ([0, 0, 1, 1, 1, 2, 2], [0, 1, 0, 1, 2, 1, 2])), shape=(3, 3))
+    F = sp.csr_matrix((np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 2.0, 0.0]),
+                       ([0, 0, 1, 1, 1, 2, 2, 2], [0, 1, 0, 1, 2, 0, 1, 2])), shape=(3, 3))
     eps, v = 1.5, 0.7
 
     F_pat = F.copy()
@@ -41,3 +42,11 @@ def test_normalize_is_symmetric_and_doubly_stochastic():
     K = _normalize(HDMConfig(), W).toarray()
     np.testing.assert_allclose(K.sum(axis=1), 1)
     np.testing.assert_allclose(K, K.T)
+
+
+def test_mapped_fiber_kernel_warns_about_missing_fiber_distances():
+    # points at x = 0, 1, 4 storing only the nearest neighbour: d(p0, p2) and d(p2, p0) are missing
+    F = sp.csr_matrix((np.array([0.0, 1.0, 1.0, 0.0, 3.0, 0.0]), ([0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 1, 2])), shape=(3, 3))
+    M = sp.csr_matrix(np.array([[0.5, 0.0, 0.5]]))  # maps half onto p0, half onto p2
+    with pytest.warns(UserWarning, match="missing from fiber_dists"):
+        _mapped_fiber_kernel(M, F, 1.0, 1.0)
