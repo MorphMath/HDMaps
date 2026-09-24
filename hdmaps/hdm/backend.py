@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import scipy.sparse as sp
 import torch
@@ -12,6 +14,9 @@ from .utils import (
     approx_base_eps,
     torch_dtype,
 )
+
+# torch's notices about its beta sparse CSR support; _normalize checks its tensor with check_invariants=True
+warnings.filterwarnings("ignore", "Sparse (invariant checks are implicitly disabled|CSR tensor support is in beta)")
 
 
 def apply_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
