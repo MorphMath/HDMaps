@@ -50,22 +50,16 @@ def _ones(A: sp.csr_matrix) -> sp.csr_matrix:
     return ones
 
 
-def _warn_if_fiber_dists_missing(M: sp.csr_matrix, routes: sp.csr_matrix) -> None:
-    if (routes.data < np.repeat(np.diff(M.indptr), np.diff(routes.indptr))).any():
-        warnings.warn(
-            "maps reach pairs missing from fiber_dists; their distance is taken as 0, which overweights them "
-            "in the kernel. Store more fiber distances to avoid this."
-        )
-
-
 def _mapped_fiber_kernel(M, F: sp.csr_matrix, base_kernel, eps: float) -> sp.csr_matrix:
     kernel = M @ F
     kernel.data = apply_kernel(kernel.data, eps)
-    routes = _ones(M) @ _ones(F)
-    _warn_if_fiber_dists_missing(M, routes)
+    routes = sp.csr_matrix(_ones(M) @ _ones(F))  # routes[r, c]: how many of r's map targets k have F[k, c] stored
     # M @ F drops sums that are exactly 0: zero mapped distances, whose kernel value is 1
     zero_dists = _ones(routes) - _ones(kernel)
-    return (kernel + zero_dists) * base_kernel
+    # keep only pairs with a stored distance from every map target; M @ F would count the missing ones as 0
+    covered = routes.copy()
+    covered.data = (routes.data == np.repeat(np.diff(M.indptr), np.diff(routes.indptr))).astype(routes.dtype)
+    return (kernel + zero_dists).multiply(covered) * base_kernel
 
 
 def _assert_diagonals_stored(fiber_dists: Indexable[sp.csr_matrix]) -> None:

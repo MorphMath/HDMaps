@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import scipy.sparse as sp
 
 from hdmaps.hdm import HDMConfig
@@ -44,9 +43,11 @@ def test_normalize_is_symmetric_and_doubly_stochastic():
     np.testing.assert_allclose(K, K.T)
 
 
-def test_mapped_fiber_kernel_warns_about_missing_fiber_distances():
+def test_mapped_fiber_kernel_drops_pairs_missing_a_fiber_distance():
     # points at x = 0, 1, 4 storing only the nearest neighbour: d(p0, p2) and d(p2, p0) are missing
     F = sp.csr_matrix((np.array([0.0, 1.0, 1.0, 0.0, 3.0, 0.0]), ([0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 1, 2])), shape=(3, 3))
     M = sp.csr_matrix(np.array([[0.5, 0.0, 0.5]]))  # maps half onto p0, half onto p2
-    with pytest.warns(UserWarning, match="missing from fiber_dists"):
-        _mapped_fiber_kernel(M, F, 1.0, 1.0)
+    result = _mapped_fiber_kernel(M, F, 1.0, 1.0)
+    # only p1 has a stored distance from both p0 and p2: mapped distance 0.5 * 1 + 0.5 * 3 = 2
+    np.testing.assert_allclose(result.toarray(), [[0, np.exp(-4), 0]])
+    assert result.nnz == 1
