@@ -1,6 +1,6 @@
-import numpy as np
-import pyvista as pv # type: ignore[import-not-found]
 import matplotlib.pyplot as plt
+import numpy as np
+import pyvista as pv  # type: ignore[import-not-found]
 from matplotlib.colors import ListedColormap
 
 
@@ -39,7 +39,6 @@ def embed_vs_actual(
     combined_cmap = ListedColormap(colors_dynamic)
 
     wings = list(range(num_samples))
-    embedded_wings = len(wings)
     enable_labels = False
 
     # Create a plotter with 2 subplots (1 row, 2 columns)

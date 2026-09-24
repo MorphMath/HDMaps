@@ -46,7 +46,8 @@ gpu = [
 ]   
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["hdmaps/tests"]
+filterwarnings = ["ignore:Sparse (invariant checks are implicitly disabled|CSR tensor support is in beta)"]
 markers = [
     "gpu: end-to-end tests requiring a CUDA GPU with cupy (run with -m gpu; skipped otherwise)",
 ]
