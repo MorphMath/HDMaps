@@ -39,21 +39,40 @@ def build_base_kernel(config: HDMConfig, base_dist: sp.csr_matrix) -> sp.csr_mat
     return base_kernel
 
 
-def _mapped_fiber_kernel(M, F: sp.csr_matrix, eps: float) -> sp.csr_matrix:
-    M = sp.csr_matrix(M)
-    M_pat = M.copy()
-    M_pat.data = np.ones_like(M_pat.data)
-    F_pat = F.copy()
-    F_pat.data = np.ones_like(F_pat.data)
+def _ones(A: sp.csr_matrix) -> sp.csr_matrix:
+    ones = A.copy()
+    ones.data[:] = 1
+    return ones
 
-    pat = sp.coo_matrix(M_pat @ F_pat)
-    dists = np.asarray(sp.csr_matrix(M @ F)[pat.row, pat.col]).ravel()
 
-    assert M.shape is not None and F.shape is not None
-    return sp.csr_matrix(
-        (apply_kernel(dists, eps), (pat.row, pat.col)),
-        shape=(M.shape[0], F.shape[1]),
-    )
+def _mapped_fiber_kernel(M, F: sp.csr_matrix, base_kernel, eps: float) -> sp.csr_matrix:
+    kernel = M @ F
+    kernel.data = apply_kernel(kernel.data, eps)
+    # M @ F drops sums that are exactly 0: zero mapped distances, whose kernel value is 1
+    zero_dists = _ones(_ones(M) @ _ones(F)) - _ones(kernel)
+    return (kernel + zero_dists) * base_kernel
+
+
+def _assert_diagonals_stored(fiber_dists: Indexable[sp.csr_matrix]) -> None:
+    for j in range(len(fiber_dists)):
+        f = fiber_dists[j]
+        assert f.shape is not None
+        rows = np.repeat(np.arange(f.shape[0]), np.diff(f.indptr))
+        assert (rows == f.indices).sum() == f.shape[0], f"fiber {j}: diagonal not fully stored"
+
+
+def _block_row(blocks: np.ndarray, js: np.ndarray, offsets: np.ndarray, height: int) -> sp.csr_matrix:
+    row = sp.csr_matrix(sp.hstack(list(blocks), format="csr"))  # compact: only the neighbour columns
+    cols = np.concatenate([np.arange(int(offsets[j]), int(offsets[j + 1])) for j in js])
+    return sp.csr_matrix((row.data, cols[row.indices], row.indptr), shape=(height, offsets[-1]))
+
+
+def _combine_blocks(blocks: np.ndarray, base_kernel: sp.csr_matrix, offsets: np.ndarray) -> sp.csr_matrix:
+    rows = []
+    for i in range(len(offsets) - 1):
+        js = base_kernel.indices[base_kernel.indptr[i] : base_kernel.indptr[i + 1]]  # neighbours of i
+        rows.append(_block_row(blocks[i, js], js, offsets, offsets[i + 1] - offsets[i]))
+    return sp.csr_matrix(sp.vstack(rows, format="csr"))
 
 
 def build_horizontal_diffusion_matrix(
@@ -61,29 +80,28 @@ def build_horizontal_diffusion_matrix(
     maps: MapBundle,
     base_kernel: sp.csr_matrix,
     fiber_dists: Indexable[sp.csr_matrix],
+    offsets: np.ndarray,
 ) -> sp.csr_matrix:
 
     fiber_epsilon = config.fiber_epsilon
     if fiber_epsilon is None:
         raise ValueError("fiber_epsilon must be set")
 
-    num_data_samples = len(fiber_dists)
+    _assert_diagonals_stored(fiber_dists)
 
-    for j in range(num_data_samples):
-        f = fiber_dists[j]
-        assert f.shape is not None
-        rows = np.repeat(np.arange(f.shape[0]), np.diff(f.indptr))
-        assert (rows == f.indices).sum() == f.shape[0], f"fiber {j}: diagonal not fully stored"
-
+    num_data_samples = len(offsets) - 1
     blocks = np.full((num_data_samples, num_data_samples), None, dtype=object)
-    base_coo = base_kernel.tocoo()
 
-    for i, j, v in zip(base_coo.row, base_coo.col, base_coo.data):
-        blocks[i, j] = _mapped_fiber_kernel(maps[i, j], fiber_dists[j], fiber_epsilon) * v
+    # symmetrize per block pair: block (i, j) of (W + W.T) / 2 is (W_ij + W_ji.T) / 2
+    upper = sp.triu(base_kernel, k=1).tocoo()
+    for i, j, v in zip(upper.row, upper.col, upper.data):
+        forth = _mapped_fiber_kernel(maps[i, j], fiber_dists[j], v, fiber_epsilon)
+        back = _mapped_fiber_kernel(maps[j, i], fiber_dists[i], v, fiber_epsilon)
+        block = (forth + back.T) * 0.5
+        blocks[i, j] = block.tocsr()
+        blocks[j, i] = block.T.tocsr()
 
-    W = sp.bmat(blocks.tolist(), format="csr")
-
-    return symmetrize(W)
+    return _combine_blocks(blocks, base_kernel, offsets)
 
 
 def _normalize(config: HDMConfig, W: sp.csr_matrix) -> sp.csr_matrix:
@@ -92,16 +110,20 @@ def _normalize(config: HDMConfig, W: sp.csr_matrix) -> sp.csr_matrix:
     I = sp.eye(n, dtype=W.dtype, format="csr")
     if config.sinkhorn_jitter > 0:
         W = W + config.sinkhorn_jitter * I
-    d = np.ones(n, dtype=W.dtype)
+    W.sort_indices()  # torch CSR requires sorted column indices
+    W_torch = torch.sparse_csr_tensor(
+        *map(torch.from_numpy, (W.indptr, W.indices, W.data)), size=W.shape, check_invariants=True
+    ).to(config.device)
+    d = torch.ones(n, dtype=W_torch.dtype, device=W_torch.device)
     for _ in range(config.sinkhorn_max_iter):
-        Wd = W @ d
-        if np.max(np.abs(d * Wd - 1)) < config.sinkhorn_tol:
+        Wd = W_torch @ d
+        if (d * Wd - 1).abs().max() < config.sinkhorn_tol:
             break
-        d = np.sqrt(d / Wd)
+        d = torch.sqrt(d / Wd)
     else:
         if config.verbose:
             print(f"Sinkhorn iteration did not converge after {config.sinkhorn_max_iter} iterations")
-    D = sp.diags(d, format="csr")
+    D = sp.diags(d.cpu().numpy(), format="csr")
     Q = D @ W @ D
     return 0.5 * (Q + I)
 
@@ -153,10 +175,9 @@ def _eigsh_cupy(
 def compute_spectral_embedding(
     config: HDMConfig,
     joint_kernel: sp.csr_matrix,
-    sizes: list[int],
+    offsets: np.ndarray,
     num_data_samples: int,
 ) -> HDMResult:
-    offsets = np.cumsum([0] + list(sizes))
     num_eig = config.num_eigenvectors
 
     normalized_kernel = _normalize(config, joint_kernel)
