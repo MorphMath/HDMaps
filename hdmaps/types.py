@@ -1,5 +1,4 @@
 from typing import Protocol
-from collections.abc import Callable
 import numpy as np
 import scipy.sparse as sp
 
