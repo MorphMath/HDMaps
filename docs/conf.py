@@ -20,4 +20,5 @@ html_theme = "sphinx_book_theme"
 html_theme_options = {
     "repository_url": "https://github.com/MorphMath/HDMaps",
     "use_repository_button": True,
+    "footer_content_items": ["copyright.html", "last-updated.html", "extra-footer.html"],
 }
