@@ -44,6 +44,9 @@ dev = [
 gpu = [                                                                                                                                                                             
     "cupy-cuda13x>=13.0",                                                                                                                                                    
 ]   
+docs = [
+    "sphinx>=9.1.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["hdmaps/tests"]

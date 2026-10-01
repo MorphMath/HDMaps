@@ -11,6 +11,7 @@ def embed_vs_actual(
     embed_scale=0.00001,
     actual_scale=0.001,
 ):
+    """Plot the embedding next to the original data samples."""
     sample_length = data_samples[0].shape[0]
     print(f"Sample length: {sample_length}, Amount: {num_samples}")
     tab20 = plt.colormaps.get_cmap("tab20").resampled(20)

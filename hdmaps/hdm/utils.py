@@ -9,6 +9,8 @@ from hdmaps.types import Indexable
 
 
 class HDMConfig(NamedTuple):
+    """Parameters for :func:`run_hdm`."""
+
     base_epsilon: float | None = None
     fiber_epsilon: float | None = None
     num_eigenvectors: int = 5
@@ -25,6 +27,8 @@ class HDMConfig(NamedTuple):
 
 
 class HDMResult(NamedTuple):
+    """Output of :func:`run_hdm`."""
+
     eigvecs: np.ndarray
     eigvals: np.ndarray
     HDM: np.ndarray

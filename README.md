@@ -24,7 +24,7 @@ pip install git+https://github.com/MorphMath/HDMaps
 ## Documentation and Usage
 For a short, accesible overview of the theory, see the [Introduction to Horizontal Diffusion Maps](docs.md/#theory). For the full treatment, see the [paper](https://www.sciencedirect.com/science/article/pii/S1063520318302215).
 
-Documentation is in [docs.md](docs.md). See [examples/](examples/) for usage examples.
+Documentation is at [morphmath.github.io/HDMaps](https://morphmath.github.io/HDMaps/). See [examples/](examples/) for usage examples.
 
 ## License
 
