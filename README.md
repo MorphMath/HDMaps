@@ -13,8 +13,6 @@
 
 **A Python implementation of Horizontal Diffusion Maps (HDM): manifold learning on fiber bundles for collections of structured data.**
 
-HDM extends diffusion maps to collections of related data objects, such as a shape or image collection. A random walk on the collection (the base) is lifted through correspondence maps across each object's internal structure (the fiber). This produces a shared coordinate system that jointly embeds each object's internal structure and the pairwise relations between objects.
-
 ## Installation
 To install the latest development version of HDMaps run:
 ```bash
