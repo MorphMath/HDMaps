@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["numpy", "pyvista", "pillow"]
 # ///
-"""Render the README banner: fibres of the Hopf fibration next to the HDMaps wordmark.
+"""Render the README banner: fibers of the Hopf fibration next to the HDMaps wordmark.
 
 Run with ``uv run media/hopf_fibration.py``. Writes ``hopf-fibration-banner.png`` (light theme)
 and ``hopf-fibration-banner-dark.png`` (dark theme) next to this script.
@@ -30,8 +30,8 @@ THEMES = {
 }
 
 
-def fibre(eta: float, phi: float, n: int = 260) -> np.ndarray:
-    """Fibre over the point (eta, phi) of the 2-sphere, stereographically projected to R^3."""
+def fiber(eta: float, phi: float, n: int = 260) -> np.ndarray:
+    """Fiber over the point (eta, phi) of the 2-sphere, stereographically projected to R^3."""
     t = np.linspace(0, 2 * np.pi, n)
     c, s = math.cos(eta / 2), math.sin(eta / 2)
     x1, x2, x3, x4 = c * np.cos(t), c * np.sin(t), s * np.cos(t + phi), s * np.sin(t + phi)
@@ -57,12 +57,12 @@ def oklch_to_hex(lightness: float, chroma: float, hue: float) -> str:
 
 
 def render_rosette(path: Path, n: int = 160, lobes: int = 8, eta0: float = 1.05, amp: float = 0.35) -> None:
-    """Fibres over a closed curve on the 2-sphere that winds in and out `lobes` times, viewed down the axis."""
+    """Fibers over a closed curve on the 2-sphere that winds in and out `lobes` times, viewed down the axis."""
     pl = pv.Plotter(off_screen=True, window_size=(2000, 2000))
     for i in range(n):
         u = i / n
         phi = 2 * math.pi * u
-        pts = fibre(eta0 + amp * math.sin(lobes * phi), phi)
+        pts = fiber(eta0 + amp * math.sin(lobes * phi), phi)
         pl.add_mesh(
             pv.Spline(pts, len(pts)).tube(radius=0.007, n_sides=16),
             color=oklch_to_hex(0.68, 0.14, 2 * math.pi * u + 3.6),

@@ -4,23 +4,23 @@
     <img src="media/hopf-fibration-banner.png" alt="HDMaps: Horizontal Diffusion Maps in Python">
   </picture>
   <br>
-  <sub><em>Fibres of the <a href="https://en.wikipedia.org/wiki/Hopf_fibration">Hopf fibration</a>, which maps the 3-sphere onto the 2-sphere. Each circle is the fibre over one point of the 2-sphere, shown after stereographic projection to 3D.</em></sub>
+  <sub><em>The logo is a rendering of the <a href="https://en.wikipedia.org/wiki/Hopf_fibration">Hopf fibration</a>, a famous example of a fiber bundle.</em></sub>
 </p>
 
 [![Test package](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml/badge.svg)](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Docs](https://github.com/MorphMath/HDMaps/actions/workflows/docs.yml/badge.svg)](https://morphmath.github.io/HDMaps/)
 
-**A Python implementation of Horizontal Diffusion Maps (HDM), a manifold learning framework for data analysis of datasets with base-fiber structure.**
+**A Python implementation of Horizontal Diffusion Maps (HDM): manifold learning on fiber bundles for collections of structured data.**
 
 ## What is HDMaps?
 
 HDM extends diffusion maps to collections of related data objects, such as a shape or image collection. A random walk on the collection (the base) is lifted through correspondence maps across each object's internal structure (the fiber). This produces a shared coordinate system that jointly embeds each object's internal structure and the pairwise relations between objects.
 
 <p align="center">
-  <img src="media/hdm_demo.gif" width="600" alt="A random walk on a neighbor graph on the base manifold, lifted through the fibres">
+  <img src="media/hdm_demo.gif" width="600" alt="A random walk on a neighbor graph on the base manifold, lifted through the fibers">
   <br>
-  <sub><em>A random walk on a neighbor graph on the base manifold lifted through the fibres: hopping between objects moves to the corresponding point on each object's structure.</em></sub>
+  <sub><em>A random walk on a neighbor graph on the base manifold lifted through the fibers: hopping between objects moves to the corresponding point on each object's structure.</em></sub>
 </p>
 
 

@@ -44,7 +44,7 @@ def test_normalize_is_symmetric_and_doubly_stochastic():
 
 
 def test_mapped_fiber_kernel_drops_pairs_missing_a_fiber_distance():
-    # points at x = 0, 1, 4 storing only the nearest neighbour: d(p0, p2) and d(p2, p0) are missing
+    # points at x = 0, 1, 4 storing only the nearest neighbor: d(p0, p2) and d(p2, p0) are missing
     F = sp.csr_matrix((np.array([0.0, 1.0, 1.0, 0.0, 3.0, 0.0]), ([0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 1, 2])), shape=(3, 3))
     M = sp.csr_matrix(np.array([[0.5, 0.0, 0.5]]))  # maps half onto p0, half onto p2
     result = _mapped_fiber_kernel(M, F, 1.0, 1.0)
