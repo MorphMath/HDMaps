@@ -1,13 +1,15 @@
-# HDMaps
-[![Test package](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml/badge.svg)](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Docs](https://github.com/MorphMath/HDMaps/actions/workflows/docs.yml/badge.svg)](https://morphmath.github.io/HDMaps/)
-
 <p align="center">
-  <img src="media/hopf-fibration.png" width="560" alt="Hopf fibration: linked circles on nested tori">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="media/hopf-fibration-banner-dark.png">
+    <img src="media/hopf-fibration-banner.png" alt="HDMaps: Horizontal Diffusion Maps in Python">
+  </picture>
   <br>
   <sub><em>Fibres of the <a href="https://en.wikipedia.org/wiki/Hopf_fibration">Hopf fibration</a>, which maps the 3-sphere onto the 2-sphere. Each circle is the fibre over one point of the 2-sphere, shown after stereographic projection to 3D.</em></sub>
 </p>
+
+[![Test package](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml/badge.svg)](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Docs](https://github.com/MorphMath/HDMaps/actions/workflows/docs.yml/badge.svg)](https://morphmath.github.io/HDMaps/)
 
 **A Python implementation of Horizontal Diffusion Maps (HDM), a manifold learning framework for data analysis of datasets with base-fiber structure.**
 
