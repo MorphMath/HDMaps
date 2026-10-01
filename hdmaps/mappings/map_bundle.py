@@ -12,8 +12,15 @@ from hdmaps.types import Indexable, Indexable2D, MapLookup
 
 
 class Storage(Protocol):
-    def setup(self, compute_map: Callable[[int, int], sp.csr_matrix], data: Indexable, mask: Indexable2D) -> None: ...
-    def get(self, i: int, j: int) -> sp.csr_matrix: ...
+    """Backend that computes and holds the maps of a :class:`MapBundle`."""
+
+    def setup(self, compute_map: Callable[[int, int], sp.csr_matrix], data: Indexable, mask: Indexable2D) -> None:
+        """Prepare storage for the maps selected by ``mask``."""
+        ...
+
+    def get(self, i: int, j: int) -> sp.csr_matrix:
+        """Return the map from sample ``i`` to sample ``j``."""
+        ...
 
 
 def _hash_item(item) -> str:
@@ -21,6 +28,8 @@ def _hash_item(item) -> str:
 
 
 class MapBundle[T]:
+    """Correspondence maps between all pairs of data samples."""
+
     def __init__(
         self,
         compute_map_f: Callable[[T, T], sp.csr_matrix],
@@ -38,6 +47,7 @@ class MapBundle[T]:
         storage: Storage | None = None,
         mask: Indexable2D | None = None,
     ) -> "MapBundle[T]":
+        """Build a bundle from precomputed maps."""
         bundle = cls.__new__(cls)
         bundle._build(lambda i, j: maps[i, j], data, storage, mask)
         return bundle
@@ -59,6 +69,7 @@ class MapBundle[T]:
         self.storage.setup(compute_map, data, self.mask)
 
     def __getitem__(self, key: tuple[int, int]) -> sp.csr_matrix:
+        """Return the map from sample ``i`` to sample ``j``."""
         if not (isinstance(key, tuple) and len(key) == 2):
             raise TypeError(f"expected a (i, j) tuple, got {key!r}")
         i, j = key
@@ -71,6 +82,8 @@ class MapBundle[T]:
 
 
 class MemoryStorage:
+    """Compute maps lazily and cache them in memory."""
+
     def setup(self, compute_map, data, mask):
         self.compute_map = compute_map
         self._cache: dict[tuple[int, int], sp.csr_matrix] = {}
@@ -82,6 +95,8 @@ class MemoryStorage:
 
 
 class DirStorage:
+    """Cache maps as ``.npz`` files in a directory."""
+
     def __init__(self, dir_path: str, max_cache_size: int | None = 1024):
         self.dir_path = dir_path
         self.max_cache_size = max_cache_size
@@ -115,6 +130,8 @@ class DirStorage:
 
 
 class PackedStorage:
+    """Cache all maps in a single ``.npz`` file."""
+
     def __init__(self, path: str):
         self.path = path if path.endswith(".npz") else f"{path}.npz"
 

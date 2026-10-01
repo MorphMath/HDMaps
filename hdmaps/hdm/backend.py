@@ -65,8 +65,8 @@ def _assert_diagonal_stored(sparse_mat: sp.csr_matrix, label: str = "") -> None:
 
 
 def _assert_diagonals_stored_list(mats: Indexable[sp.csr_matrix], label: str = "") -> None:
-    for j, m in enumerate(mats):
-        _assert_diagonal_stored(m, f"{label} {j}")
+    for j in range(len(mats)):
+        _assert_diagonal_stored(mats[j], f"{label} {j}")
 
 
 def _block_row(blocks: np.ndarray, js: np.ndarray, offsets: np.ndarray, height: int) -> sp.csr_matrix:
