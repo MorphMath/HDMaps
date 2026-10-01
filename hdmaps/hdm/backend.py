@@ -19,11 +19,11 @@ from .utils import (
 warnings.filterwarnings("ignore", "Sparse (invariant checks are implicitly disabled|CSR tensor support is in beta)")
 
 
-def apply_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
+def _apply_kernel(dist: np.ndarray, eps: float) -> np.ndarray:
     return np.exp(-(dist**2) / eps ** 2)
 
 
-def symmetrize(A):
+def _symmetrize(A):
     return (A + A.T) * 0.5
 
 
