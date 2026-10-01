@@ -694,6 +694,7 @@ visual = [
 requires-dist = [
     { name = "cupy-cuda13x", marker = "extra == 'gpu'", specifier = ">=13.0" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3,<4.0" },
+    { name = "matplotlib", marker = "extra == 'visual'", specifier = ">=3,<4.0" },
     { name = "myst-nb", marker = "extra == 'docs'", specifier = ">=1.4.0" },
     { name = "numpy", specifier = ">=2.0,<3.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1,<2.0" },

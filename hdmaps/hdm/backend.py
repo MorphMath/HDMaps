@@ -71,7 +71,7 @@ def _assert_diagonals_stored_list(mats: Indexable[sp.csr_matrix], label: str = "
 
 
 def _block_row(blocks: np.ndarray, js: np.ndarray, offsets: np.ndarray, height: int) -> sp.csr_matrix:
-    row = sp.csr_matrix(sp.hstack(list(blocks), format="csr"))  # compact: only the neighbour columns
+    row = sp.csr_matrix(sp.hstack(list(blocks), format="csr"))  # compact: only the neighbor columns
     cols = np.concatenate([np.arange(int(offsets[j]), int(offsets[j + 1])) for j in js])
     return sp.csr_matrix((row.data, cols[row.indices], row.indptr), shape=(height, offsets[-1]))
 
@@ -79,7 +79,7 @@ def _block_row(blocks: np.ndarray, js: np.ndarray, offsets: np.ndarray, height: 
 def _combine_blocks(blocks: np.ndarray, base_kernel: sp.csr_matrix, offsets: np.ndarray) -> sp.csr_matrix:
     rows = []
     for i in range(len(offsets) - 1):
-        js = base_kernel.indices[base_kernel.indptr[i] : base_kernel.indptr[i + 1]]  # neighbours of i
+        js = base_kernel.indices[base_kernel.indptr[i] : base_kernel.indptr[i + 1]]  # neighbors of i
         rows.append(_block_row(blocks[i, js], js, offsets, offsets[i + 1] - offsets[i]))
     return sp.csr_matrix(sp.vstack(rows, format="csr"))
 
