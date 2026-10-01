@@ -10,9 +10,9 @@ n, m, k = 40, 9, 4
 theta = 2 * np.pi * np.arange(n) / n
 d = np.abs(theta[:, None] - theta[None, :])
 D = np.minimum(d, 2 * np.pi - d)
-np.fill_diagonal(D, np.inf)
-cols = np.argsort(D, axis=1)[:, :k].ravel()
-rows = np.repeat(np.arange(n), k)
+np.fill_diagonal(D, 0)
+cols = np.argsort(D, axis=1)[:, : k + 1].ravel()
+rows = np.repeat(np.arange(n), k + 1)
 base_dist = sp.csr_matrix((D[rows, cols], (rows, cols)), shape=(n, n))
 
 t = np.linspace(-1, 1, m)
@@ -42,6 +42,8 @@ results = {
     "Mobius": run_hdm(config, base_dist, mobius_bundle, fiber_dists),
     "Cylinder": run_hdm(config, base_dist, cylinder_bundle, fiber_dists),
 }
+
+print(results["Mobius"].eigvals)
 
 U, V = np.meshgrid(theta, t, indexing="ij")
 surfaces = {
