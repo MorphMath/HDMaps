@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use HDMaps in your work, please cite the paper that introduced Horizontal Diffusion Maps."
+title: "HDMaps"
+abstract: "A Python implementation of Horizontal Diffusion Maps (HDM), a manifold learning framework for data analysis of datasets with base-fiber structure."
+type: software
+authors:
+  - given-names: "Felix"
+    family-names: "Granum"
+  - given-names: "Sofus Hesseldahl"
+    family-names: "Laubel"
+license: MIT
+repository-code: "https://github.com/MorphMath/HDMaps"
+url: "https://morphmath.github.io/HDMaps/"
+preferred-citation:
+  type: article
+  title: "The diffusion geometry of fibre bundles: Horizontal diffusion maps"
+  authors:
+    - given-names: "Tingran"
+      family-names: "Gao"
+  journal: "Applied and Computational Harmonic Analysis"
+  volume: 50
+  start: 147
+  end: 215
+  year: 2021
+  issn: "1063-5203"
+  doi: "10.1016/j.acha.2019.08.001"
+  url: "https://www.sciencedirect.com/science/article/pii/S1063520318302215"

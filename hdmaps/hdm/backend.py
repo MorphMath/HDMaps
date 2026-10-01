@@ -61,7 +61,8 @@ def _assert_diagonal_stored(sparse_mat: sp.csr_matrix, label: str = "") -> None:
     m = sparse_mat.copy()
     m.sum_duplicates()
     rows = np.repeat(np.arange(m.shape[0]), np.diff(m.indptr))
-    assert (rows == m.indices).sum() == m.shape[0], f"{label}: diagonal not fully stored"
+    if (rows == m.indices).sum() != m.shape[0]:
+        raise ValueError(f"{label}: diagonal not fully stored")
 
 
 def _assert_diagonals_stored_list(mats: Indexable[sp.csr_matrix], label: str = "") -> None:
@@ -197,11 +198,13 @@ def compute_spectral_embedding(
     else:
         vals, V = _eigsh_scipy(config, normalized_kernel, num_eig)
 
-    assert vals[0] < 1 - config.eig_tol, "graph is disconnected: eigenvalue 1 has multiplicity > 1"
+    if vals[0] >= 1 - config.eig_tol:
+        raise ValueError("graph is disconnected: eigenvalue 1 has multiplicity > 1")
 
     vals = vals[1 : num_eig + 1]
     num_pos = int((vals > 0).sum())
-    assert num_pos == num_eig, f"only {num_pos} of {num_eig} eigenvalues are positive; lower num_eigenvectors"
+    if num_pos != num_eig:
+        raise ValueError(f"only {num_pos} of {num_eig} eigenvalues are positive; lower num_eigenvectors")
     V = V[:, 1 : num_eig + 1]
 
     HDM = V * (vals ** config.t)
