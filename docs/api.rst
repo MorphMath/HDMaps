@@ -18,9 +18,3 @@ Types
 
 .. automodule:: hdmaps.types
    :members:
-
-Visualization
--------------
-
-.. automodule:: hdmaps.visual.visualization_tools
-   :members:
