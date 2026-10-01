@@ -3,18 +3,25 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "HDM"
+name = "hdmaps"
 version = "0.0.1"
 authors = [
   { name="Felix Granum", email="felix+hdmaps@hjerrild.org" },
   { name="Sofus Hesseldahl Laubel", email="sofus@laubel.net"}
 ]
-description = "HDM description"
+description = "A Python implementation of Horizontal Diffusion Maps (HDM), a manifold learning framework for data analysis of datasets with base-fiber structure."
 readme = "README.md"
 requires-python = ">=3.12"
+keywords = ["horizontal diffusion maps", "diffusion maps", "manifold learning", "fibre bundles"]
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
 ]
 license = "MIT"
 dependencies = [
@@ -25,10 +32,16 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://github.com/frisbro303/HDM_Python"
+Homepage = "https://github.com/MorphMath/HDMaps"
+Documentation = "https://morphmath.github.io/HDMaps/"
+Issues = "https://github.com/MorphMath/HDMaps/issues"
 
 [tool.setuptools.packages.find]
 include = ["hdmaps*"]
+exclude = ["hdmaps.tests*", "hdmaps.hdm.tests*"]
+
+[tool.setuptools.package-data]
+hdmaps = ["py.typed"]
 
 
 [project.optional-dependencies]

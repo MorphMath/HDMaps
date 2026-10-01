@@ -5,13 +5,10 @@ A Python implementation of Horizontal Diffusion Maps (HDM).
 
 .. toctree::
    :maxdepth: 2
-
-   introduction
-
-.. toctree::
-   :maxdepth: 2
    :caption: User guide
 
+   eli5
+   installation
    quickstart
    input_requirements
    parameters
