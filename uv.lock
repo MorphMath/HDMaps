@@ -699,7 +699,6 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0,<3.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1,<2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9,<10" },
-    { name = "pyvista", marker = "extra == 'visual'", specifier = ">=0.49.0" },
     { name = "scipy", specifier = ">=1.15,<2.0" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=9.1.0" },
     { name = "sphinx-book-theme", marker = "extra == 'docs'", specifier = ">=1.4.0" },
