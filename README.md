@@ -2,7 +2,6 @@
 [![Test package](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml/badge.svg)](https://github.com/MorphMath/HDMaps/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Docs](https://github.com/MorphMath/HDMaps/actions/workflows/docs.yml/badge.svg)](https://morphmath.github.io/HDMaps/)
-[![Paper DOI](https://img.shields.io/badge/paper%20DOI-10.1016%2Fj.acha.2019.08.001-blue)](https://doi.org/10.1016/j.acha.2019.08.001)
 
 **A Python implementation of Horizontal Diffusion Maps (HDM), a manifold learning framework for data analysis of datasets with base-fiber structure.**
 
