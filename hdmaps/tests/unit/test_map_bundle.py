@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sp
 
-from hdmaps.mappings import DirStorage, MapBundle, PackedStorage
+from hdmaps.mapping import DirStorage, MapBundle, PackedStorage
 
 DATA = [1, 2, 3]
 DIAG = np.eye(3, dtype=bool)

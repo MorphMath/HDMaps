@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse as sp
 import torch
 
-from hdmaps.mappings import MapBundle
+from hdmaps.mapping import MapBundle
 from hdmaps.types import Indexable
 
 from .utils import (
@@ -198,7 +198,7 @@ def compute_spectral_embedding(
     else:
         vals, V = _eigsh_scipy(config, normalized_kernel, num_eig)
 
-    if vals[0] >= 1 - config.eig_tol:
+    if vals[1] >= 1 - config.eig_tol:
         raise ValueError("graph is disconnected: eigenvalue 1 has multiplicity > 1")
 
     vals = vals[1 : num_eig + 1]

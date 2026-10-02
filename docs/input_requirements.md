@@ -28,7 +28,7 @@
 - Avoid storing explicit zeros. Every stored entry in row `p` counts as a target of point `p`.
 - A point of sample `i` is only related to point `q` of sample `j` if every target of the point has a stored fiber distance to `q`. Otherwise the pair is dropped.
 
-Every map allowed by the {class}`~hdmaps.mappings.MapBundle` mask is computed when `run_hdm` validates its inputs. With the default mask that is all `n²` pairs, so pass a mask that matches the neighbors in `base_dist` when maps are expensive.
+Every map allowed by the {class}`~hdmaps.mapping.MapBundle` mask is computed when `run_hdm` validates its inputs. With the default mask that is all `n²` pairs, so pass a mask that matches the neighbors in `base_dist` when maps are expensive.
 
 ## Config
 

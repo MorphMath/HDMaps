@@ -1,7 +1,7 @@
 from importlib.metadata import version
 
 from .hdm import HDMConfig, HDMResult, run_hdm
-from .mappings import DirStorage, MapBundle, MemoryStorage, PackedStorage, Storage
+from .mapping import DirStorage, MapBundle, MemoryStorage, PackedStorage, Storage
 
 __version__ = version("hdmaps")
 

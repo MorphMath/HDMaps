@@ -653,6 +653,16 @@ wheels = [
 ]
 
 [[package]]
+name = "fpsample"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pybind11" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/51/0d/c58b12e5dd6c0880b7f420d32af317e5817c54369019c0a04eb350b47ea2/fpsample-1.0.2.tar.gz", hash = "sha256:5e25f97c03412d243767fb9e47f7b6d6c736c7ce1e9d51918894e3fd327749f2", size = 40361, upload-time = "2025-12-20T12:30:21.859Z" }
+
+[[package]]
 name = "fsspec"
 version = "2026.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -666,6 +676,7 @@ name = "hdmaps"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "fpsample" },
     { name = "numpy" },
     { name = "scipy" },
     { name = "torch" },
@@ -693,6 +704,7 @@ visual = [
 [package.metadata]
 requires-dist = [
     { name = "cupy-cuda13x", marker = "extra == 'gpu'", specifier = ">=13.0" },
+    { name = "fpsample", specifier = ">=1.0.2,<2.0" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3,<4.0" },
     { name = "matplotlib", marker = "extra == 'visual'", specifier = ">=3,<4.0" },
     { name = "myst-nb", marker = "extra == 'docs'", specifier = ">=1.4.0" },
@@ -1686,6 +1698,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/da/9f/abfd2959e9261dd5217ca8551d4de211ca6ab26fe9b72cf44731ff6c4442/pure_eval-0.2.4.tar.gz", hash = "sha256:260c2774686e651b79f8b8e7fc9d80b3599ea6a66334b47d5f4abb69fc2c0ea1", size = 20563, upload-time = "2026-09-10T21:41:22.836Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/18/83376915176eb058cb86470eb7396388a13350b09a8f233a79303bbcbc5b/pure_eval-0.2.4-py3-none-any.whl", hash = "sha256:96cae060a313cfaad51bb761278bfb0e62dc0248d9315a81173752dc546cd37a", size = 11893, upload-time = "2026-09-10T21:41:21.532Z" },
+]
+
+[[package]]
+name = "pybind11"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/f3/95b0f40b31df41dbfe6bb0857419c9442c15839cbac4796f1c26ae0b6081/pybind11-3.1.0.tar.gz", hash = "sha256:a1cc06b524ab3edca51f8ad3895f9c4fa20b8b19283173dff4ae781449dc9639", size = 603746, upload-time = "2026-08-06T23:33:00.675Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl", hash = "sha256:b8488090f8acffbcb6b5d6a85571a6827a0a2981ffb75e5a0b27b87c4a6b7dd0", size = 319402, upload-time = "2026-08-06T23:32:59.047Z" },
 ]
 
 [[package]]

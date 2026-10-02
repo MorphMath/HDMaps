@@ -58,19 +58,19 @@ def oklch_to_hex(lightness: float, chroma: float, hue: float) -> str:
 
 def render_rosette(path: Path, n: int = 160, lobes: int = 8, eta0: float = 1.05, amp: float = 0.35) -> None:
     """Fibers over a closed curve on the 2-sphere that winds in and out `lobes` times, viewed down the axis."""
-    pl = pv.Plotter(off_screen=True, window_size=(2000, 2000))
+    pl = pv.Plotter(off_screen=True, window_size=[2000, 2000])
     for i in range(n):
         u = i / n
         phi = 2 * math.pi * u
         pts = fiber(eta0 + amp * math.sin(lobes * phi), phi)
         pl.add_mesh(
-            pv.Spline(pts, len(pts)).tube(radius=0.007, n_sides=16),
+            pv.Spline(pts, len(pts)).tube(radius=0.007, n_sides=16),  # pyright: ignore[reportArgumentType]
             color=oklch_to_hex(0.68, 0.14, 2 * math.pi * u + 3.6),
             smooth_shading=True, ambient=0.35, diffuse=0.65, specular=0.2, specular_power=20,
         )
     pl.enable_anti_aliasing("ssaa")
     pl.camera_position = [(0.0, 0.0, 9.0), (0.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
-    pl.reset_camera()
+    pl.reset_camera()  # pyright: ignore[reportCallIssue]
     pl.camera.zoom(1.1)
     pl.screenshot(str(path), transparent_background=True)
 

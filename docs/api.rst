@@ -7,14 +7,20 @@ HDM
 .. automodule:: hdmaps.hdm
    :members:
 
-Mappings
---------
+Mapping
+-------
 
-.. automodule:: hdmaps.mappings
+.. automodule:: hdmaps.mapping
    :members:
 
 Types
 -----
 
 .. automodule:: hdmaps.types
+   :members:
+
+Visualization
+-------------
+
+.. automodule:: hdmaps.visual
    :members:
