@@ -1,20 +1,8 @@
-"""Rigid alignment of point set collections, modelled after auto3dgm.
-
-auto3dgm aligns a collection of anatomical surfaces without landmarks:
+"""Rigid alignment of point set collections, in broad strokes modelled after auto3dgm:
 
     D. M. Boyer, J. Puente, J. T. Gladman, C. Glynn, S. Mukherjee, G. S. Yapuncich and I. Daubechies,
     "A New Fully Automated Approach for Aligning and Comparing Shapes",
     The Anatomical Record 298(1):249-276, 2015. https://doi.org/10.1002/ar.23084
-
-This module implements its two steps in a basic form. :func:`align_pair` is the pairwise step: each
-shape is normalized and subsampled by farthest point sampling, every principal axes alignment is
-tried as a starting point, and each is refined by alternating an optimal one-to-one matching with
-an orthogonal Procrustes fit until the matching stops changing. :func:`align` is the global step:
-the pairwise rotations are chained along a minimum spanning tree of the alignment costs, which puts
-every shape in one consistent frame.
-
-Compared with auto3dgm, there is no second pass that refines the alignment with more points, and
-reflections are excluded unless ``allow_reflection`` is set.
 """
 
 import itertools
