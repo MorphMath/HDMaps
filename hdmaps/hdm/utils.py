@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse as sp
 import torch
 
-from hdmaps.mappings import MapBundle
+from hdmaps.mapping import MapBundle
 from hdmaps.types import Indexable
 
 

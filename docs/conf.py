@@ -11,7 +11,7 @@ extensions = [
 napoleon_google_docstring = False
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
-autodoc_mock_imports = ["cupy", "cupyx"]
+autodoc_mock_imports = ["cupy", "cupyx", "matplotlib", "mpl_toolkits"]
 
 nb_execution_mode = "off"
 myst_enable_extensions = ["dollarmath", "amsmath"]

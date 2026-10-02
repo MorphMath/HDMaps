@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use HDMaps in your work, please cite the paper that introduced Horizontal Diffusion Maps."
 title: "HDMaps"
-abstract: "A Python implementation of Horizontal Diffusion Maps (HDM): manifold learning on fiber bundles for collections of structured data."
+abstract: "A Python implementation of Horizontal Diffusion Maps (HDM): unsupervised manifold learning on fiber bundles for collections of structured data."
 type: software
 authors:
   - given-names: "Felix"

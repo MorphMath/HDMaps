@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Docs](https://github.com/MorphMath/HDMaps/actions/workflows/docs.yml/badge.svg)](https://morphmath.github.io/HDMaps/)
 
-**A Python implementation of Horizontal Diffusion Maps (HDM): manifold learning on fiber bundles for collections of structured data.**
+**A Python implementation of Horizontal Diffusion Maps (HDM): unsupervised manifold learning on fiber bundles for collections of structured data.**
 
 ## Installation
 To install the latest development version of HDMaps run:
