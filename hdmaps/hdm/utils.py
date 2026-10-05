@@ -1,10 +1,11 @@
+import os
+import warnings
 from typing import NamedTuple
 
 import numpy as np
 import scipy.sparse as sp
 import torch
 
-from hdmaps.mappings import MapBundle
 from hdmaps.types import Indexable
 
 
@@ -45,17 +46,19 @@ def torch_dtype(dtype) -> torch.dtype:
     return torch.from_numpy(np.empty(0, dtype=dtype)).dtype
 
 
-def validate_dtypes(config: HDMConfig, base_dist: sp.csr_matrix, maps: MapBundle):
-    expected = np.dtype(config.dtype)
-    if base_dist.dtype != expected:
-        raise ValueError(f"base_dist is {base_dist.dtype}, expected {expected}")
-    for i, j in zip(*maps.mask.nonzero()):
-        block = maps[i, j]
-        if block.dtype != expected:
-            raise ValueError(f"maps[{i}, {j}] is {block.dtype}, expected {expected}")
+def warn(message: str) -> None:
+    # point at the user's line, not at ours
+    warnings.warn(message, skip_file_prefixes=(os.path.dirname(__file__) + os.sep,))
 
-    if config.fiber_epsilon is None:
-        raise ValueError(f"Fiber epsilon is {None} expected float")
+
+def warn_cast(name: str, from_dtypes: set[str], dtype: type) -> None:
+    if from_dtypes:
+        warn(f"{name}: cast from {', '.join(sorted(from_dtypes))} to {np.dtype(dtype)} (config.dtype)")
+
+
+def cast(mats: list[sp.csr_matrix], dtype: type, name: str) -> list[sp.csr_matrix]:
+    warn_cast(name, {str(m.dtype) for m in mats if m.dtype != dtype}, dtype)
+    return [sp.csr_matrix(m.astype(dtype, copy=False)) for m in mats]
 
 
 def get_sizes(fiber_dists: Indexable[sp.csr_matrix]) -> tuple[int, list[int]]:
@@ -68,9 +71,19 @@ def get_sizes(fiber_dists: Indexable[sp.csr_matrix]) -> tuple[int, list[int]]:
     return (num_data_samples, sizes)
 
 
-def approx_base_eps(D: sp.csr_matrix) -> float:
-    row_max = np.asarray(D.max(axis=1).todense()).ravel()
-    return float(np.median(row_max))
+def approx_eps(mats: Indexable[sp.csr_matrix]) -> float:
+    # median over the matrices of each one's median non-zero distance
+    medians = [np.median(d) for i in range(len(mats)) if (d := mats[i].data[mats[i].data > 0]).size]
+    return float(np.median(medians)) if medians else 0.0
+
+
+def resolve_epsilon(eps: float | None, mats: Indexable[sp.csr_matrix], name: str) -> float:
+    if eps is not None:
+        return eps
+    eps = approx_eps(mats)
+    if not eps > 0:
+        raise ValueError(f"C1: {name}: estimated as {eps}; set it in HDMConfig")
+    return eps
 
 
 def _is_cuda(device: torch.device | str) -> bool:

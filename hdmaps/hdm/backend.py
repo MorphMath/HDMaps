@@ -11,9 +11,12 @@ from .utils import (
     HDMConfig,
     HDMResult,
     _is_cuda,
-    approx_base_eps,
+    resolve_epsilon,
     torch_dtype,
+    warn,
+    warn_cast,
 )
+from .validation import check_map
 
 # torch's notices about its beta sparse CSR support; _normalize checks its tensor with check_invariants=True
 warnings.filterwarnings("ignore", "Sparse (invariant checks are implicitly disabled|CSR tensor support is in beta)")
@@ -28,16 +31,12 @@ def _symmetrize(A):
 
 
 def build_base_kernel(config: HDMConfig, base_dist: sp.csr_matrix) -> sp.csr_matrix:
-    _assert_diagonal_stored(base_dist, "base")
-
-    base_epsilon = config.base_epsilon
-    if base_epsilon is None:
-        base_epsilon = approx_base_eps(base_dist)
+    base_epsilon = resolve_epsilon(config.base_epsilon, [base_dist], "base_epsilon")
 
     base_kernel = base_dist.astype(config.dtype)
-    base_kernel.data = apply_kernel(base_kernel.data, base_epsilon)
+    base_kernel.data = _apply_kernel(base_kernel.data, base_epsilon)
 
-    return sp.csr_matrix(symmetrize(base_kernel))
+    return sp.csr_matrix(_symmetrize(base_kernel))
 
 
 def _ones(A: sp.csr_matrix) -> sp.csr_matrix:
@@ -48,25 +47,12 @@ def _ones(A: sp.csr_matrix) -> sp.csr_matrix:
 
 def _mapped_fiber_kernel(M, F: sp.csr_matrix, weight: float, eps: float) -> sp.csr_matrix:
     kernel = M @ F
-    kernel.data = apply_kernel(kernel.data, eps)
+    kernel.data = _apply_kernel(kernel.data, eps)
     routes = sp.csr_matrix(_ones(M) @ _ones(F))
     zero_dists = _ones(routes) - _ones(kernel)
     covered = routes.copy()
     covered.data = (routes.data == np.repeat(np.diff(M.indptr), np.diff(routes.indptr))).astype(routes.dtype)
     return (kernel + zero_dists).multiply(covered) * weight
-
-
-def _assert_diagonal_stored(sparse_mat: sp.csr_matrix, label: str = "") -> None:
-    assert sparse_mat.shape is not None
-    m = sparse_mat.copy()
-    m.sum_duplicates()
-    rows = np.repeat(np.arange(m.shape[0]), np.diff(m.indptr))
-    assert (rows == m.indices).sum() == m.shape[0], f"{label}: diagonal not fully stored"
-
-
-def _assert_diagonals_stored_list(mats: Indexable[sp.csr_matrix], label: str = "") -> None:
-    for j, m in enumerate(mats):
-        _assert_diagonal_stored(m, f"{label} {j}")
 
 
 def _block_row(blocks: np.ndarray, js: np.ndarray, offsets: np.ndarray, height: int) -> sp.csr_matrix:
@@ -90,27 +76,36 @@ def build_horizontal_diffusion_matrix(
     fiber_dists: Indexable[sp.csr_matrix],
     offsets: np.ndarray,
 ) -> sp.csr_matrix:
-    fiber_epsilon = config.fiber_epsilon
-    if fiber_epsilon is None:
-        raise ValueError("fiber_epsilon must be set")
-
-    _assert_diagonals_stored_list(fiber_dists, "fiber")
+    fiber_epsilon = resolve_epsilon(config.fiber_epsilon, fiber_dists, "fiber_epsilon")
 
     num_data_samples = len(offsets) - 1
+    sizes = np.diff(offsets).tolist()
     blocks = np.full((num_data_samples, num_data_samples), None, dtype=object)
+
+    cast_from: set[str] = set()
+
+    def fetch(i: int, j: int) -> sp.csr_matrix:
+        M = maps[i, j]
+        check_map(M, f"maps[{i}, {j}]", (sizes[i], sizes[j]))
+        if M.dtype != config.dtype:
+            cast_from.add(str(M.dtype))
+        return sp.csr_matrix(M.astype(config.dtype, copy=False))
 
     upper = sp.triu(base_kernel, k=1).tocoo()
     for i, j, v in zip(upper.row, upper.col, upper.data):
-        forth = _mapped_fiber_kernel(maps[i, j], fiber_dists[j], v, fiber_epsilon)
-        back = _mapped_fiber_kernel(maps[j, i], fiber_dists[i], v, fiber_epsilon)
+        M_ij, M_ji = fetch(i, j), fetch(j, i)
+        forth = _mapped_fiber_kernel(M_ij, fiber_dists[j], v, fiber_epsilon)
+        back = _mapped_fiber_kernel(M_ji, fiber_dists[i], v, fiber_epsilon)
         block = (forth + back.T) * 0.5
         blocks[i, j] = block.tocsr()
         blocks[j, i] = block.T.tocsr()
 
+    warn_cast("maps", cast_from, config.dtype)
+
     for i in range(num_data_samples):
         K = fiber_dists[i].astype(config.dtype)
-        K.data = apply_kernel(K.data, fiber_epsilon)
-        blocks[i, i] = sp.csr_matrix(symmetrize(K))
+        K.data = _apply_kernel(K.data, fiber_epsilon)
+        blocks[i, i] = sp.csr_matrix(_symmetrize(K))
 
     return _combine_blocks(blocks, base_kernel, offsets)
 
@@ -197,12 +192,18 @@ def compute_spectral_embedding(
     else:
         vals, V = _eigsh_scipy(config, normalized_kernel, num_eig)
 
-    assert vals[0] < 1 - config.eig_tol, "graph is disconnected: eigenvalue 1 has multiplicity > 1"
-
     vals = vals[1 : num_eig + 1]
-    num_pos = int((vals > 0).sum())
-    assert num_pos == num_eig, f"only {num_pos} of {num_eig} eigenvalues are positive; lower num_eigenvectors"
     V = V[:, 1 : num_eig + 1]
+
+    if vals[0] >= 1 - config.eig_tol:
+        warn(
+            f"eigenvalue 1 has multiplicity > 1 (second eigenvalue {float(vals[0]):.8g}): "
+            "the graph is disconnected or nearly so"
+        )
+
+    num_pos = int((vals > 0).sum())
+    if num_pos < num_eig:
+        raise ValueError(f"only {num_pos} of {num_eig} eigenvalues are positive; lower num_eigenvectors")
 
     HDM = V * (vals ** config.t)
 

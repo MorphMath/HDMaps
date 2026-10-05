@@ -9,9 +9,10 @@ from .utils import (
     HDMConfig,
     HDMResult,
     get_backend,
+    cast,
     get_sizes,
-    validate_dtypes,
 )
+from .validation import validate_inputs
 
 
 def run_hdm(
@@ -38,7 +39,9 @@ def run_hdm(
         HDMResult: Eigenvectors, eigenvalues, HDM coordinates and HBDD coordinates.
     """
 
-    validate_dtypes(config, base_dist, maps)
+    validate_inputs(config, base_dist, maps, fiber_dists)
+    [base_dist] = cast([base_dist], config.dtype, "base_dist")
+    fiber_dists = cast([fiber_dists[i] for i in range(len(fiber_dists))], config.dtype, "fiber_dists")
 
 
     num_data_samples, sizes = get_sizes(fiber_dists)
