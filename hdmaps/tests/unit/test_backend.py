@@ -1,7 +1,6 @@
 """Assumptions on the inputs are listed in hdmaps/hdm/validation.py."""
 
 import numpy as np
-import pytest
 import scipy.sparse as sp
 
 from hdmaps.hdm import HDMConfig
@@ -9,9 +8,6 @@ from hdmaps.mapping import MapBundle
 from helpers import csr
 from hdmaps.hdm.backend import (
     _mapped_fiber_kernel,
-    _normalize,
-    _apply_kernel,
-    _symmetrize,
     build_base_kernel,
     build_horizontal_diffusion_matrix,
     compute_spectral_embedding,
