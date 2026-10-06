@@ -6,7 +6,7 @@ import scipy.sparse as sp
 
 from hdmaps.hdm import HDMConfig
 from hdmaps.hdm.validation import check_config, check_distances, check_map, check_structure, validate_inputs
-from hdmaps.mappings import MapBundle
+from hdmaps.mapping import MapBundle
 
 
 def csr(A, stored=None):

@@ -68,7 +68,7 @@ Differs from the paper:
 import numpy as np
 import scipy.sparse as sp
 
-from hdmaps.mappings import MapBundle
+from hdmaps.mapping import MapBundle
 from hdmaps.types import Indexable
 
 from .utils import HDMConfig, get_sizes

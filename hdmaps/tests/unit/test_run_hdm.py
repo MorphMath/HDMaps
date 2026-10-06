@@ -5,7 +5,7 @@ import pytest
 import scipy.sparse as sp
 
 from hdmaps.hdm import HDMConfig, run_hdm
-from hdmaps.mappings import MapBundle
+from hdmaps.mapping import MapBundle
 
 CONFIG = HDMConfig(base_epsilon=2, fiber_epsilon=1, num_eigenvectors=4, verbose=False)
 

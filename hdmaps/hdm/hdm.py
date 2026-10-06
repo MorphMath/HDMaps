@@ -2,7 +2,7 @@
 import numpy as np
 import scipy.sparse as sp
 
-from hdmaps.mappings import MapBundle
+from hdmaps.mapping import MapBundle
 from hdmaps.types import Indexable
 
 from .utils import (
@@ -21,22 +21,18 @@ def run_hdm(
     maps: MapBundle,
     fiber_dists: Indexable,
 ) -> HDMResult:
-    """
-    Computes the Horizontal Diffusion Maps (HDM) and Horizontal Base Diffusion Distance (HBDD) from precomputed base distances and fiber maps.
+    """Compute the horizontal diffusion map embedding.
 
-    Builds the base kernel from the base distances, assembles the joint kernel over all
-    fibers using the maps, normalizes it, and computes the spectral embedding.
+    Parameters
+    ----------
+    config : HDMConfig
+    base_dist : scipy.sparse.csr_matrix
+    maps : MapBundle
+    fiber_dists : Indexable[scipy.sparse.csr_matrix]
 
-    Parameters:
-        config (HDMConfig): Configuration object specifying HDM parameters.
-        base_dist (np.ndarray): Dense (num_samples, num_samples) matrix of base distances.
-        maps (np.ndarray): (num_samples, num_samples) object array of fiber correspondence
-            blocks.
-        fiber_dists (np.ndarray): (num_samples) object array of distance
-            matrices on each data sample.
-
-    Returns:
-        HDMResult: Eigenvectors, eigenvalues, HDM coordinates and HBDD coordinates.
+    Returns
+    -------
+    HDMResult
     """
 
     validate_inputs(config, base_dist, maps, fiber_dists)
