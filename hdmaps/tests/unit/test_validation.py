@@ -7,14 +7,7 @@ import scipy.sparse as sp
 from hdmaps.hdm import HDMConfig
 from hdmaps.hdm.validation import check_config, check_distances, check_map, check_structure, validate_inputs
 from hdmaps.mapping import MapBundle
-
-
-def csr(A, stored=None):
-    # unlike sp.csr_matrix(A), keeps explicit zeros such as the diagonal
-    A = np.asarray(A, dtype=float)
-    stored = np.ones(A.shape, bool) if stored is None else np.asarray(stored)
-    r, c = np.nonzero(stored)
-    return sp.csr_matrix((A[r, c], (r, c)), shape=A.shape)
+from helpers import csr
 
 
 def dists(points):
