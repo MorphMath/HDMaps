@@ -21,7 +21,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 | Extra | Installs | Use |
 |---|---|---|
 | `gpu` | CuPy for CUDA 13 | Running on a GPU, see {doc}`gpu` |
-| `dev` | pytest, pyright, matplotlib | Development, see {doc}`contributing` |
+| `dev` | pytest, pyright | Development, see {doc}`contributing` |
 | `docs` | Sphinx and theme | Building these docs |
 
 Install an extra with:

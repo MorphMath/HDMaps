@@ -18,7 +18,7 @@ from .utils import (
 )
 from .validation import check_map
 
-# torch's notices about its beta sparse CSR support; _normalize checks its tensor with check_invariants=True
+# torch's notices about its beta sparse CSR support; _sinkhorn checks its tensor with check_invariants=True
 warnings.filterwarnings("ignore", "Sparse (invariant checks are implicitly disabled|CSR tensor support is in beta)")
 
 
@@ -110,27 +110,13 @@ def build_horizontal_diffusion_matrix(
     return _combine_blocks(blocks, base_kernel, offsets)
 
 
-def _normalize(config: HDMConfig, W: sp.csr_matrix) -> sp.csr_matrix:
+def _normalize(config: HDMConfig, W: sp.csr_matrix) -> tuple[sp.csr_matrix, sp.csr_matrix]:
     assert W.shape is not None
-    n = W.shape[0]
-    I = sp.eye(n, dtype=W.dtype, format="csr")
-    W = W + config.sinkhorn_jitter * I if config.sinkhorn_jitter > 0 else W.copy()
-    W.sort_indices()
-    W_torch = torch.sparse_csr_tensor(
-        *map(torch.from_numpy, (W.indptr, W.indices, W.data)), size=W.shape, check_invariants=True
-    ).to(config.device)
-    d = torch.ones(n, dtype=W_torch.dtype, device=W_torch.device)
-    for _ in range(config.sinkhorn_max_iter):
-        Wd = W_torch @ d
-        if (d * Wd - 1).abs().max() < config.sinkhorn_tol:
-            break
-        d = torch.sqrt(d / Wd)
-    else:
-        if config.verbose:
-            print(f"Sinkhorn iteration did not converge after {config.sinkhorn_max_iter} iterations")
-    D = sp.diags(d.cpu().numpy(), format="csr")
-    Q = D @ W @ D
-    return 0.5 * (Q + I)
+    s = sp.diags(1.0 / np.asarray(W.sum(axis=1)).ravel(), format="csr")
+    W_alpha = s @ W @ s
+    d_inv_sqrt = sp.diags(1.0 / np.sqrt(np.asarray(W_alpha.sum(axis=1)).ravel()), format="csr")
+    Q = d_inv_sqrt @ W_alpha @ d_inv_sqrt
+    return Q, d_inv_sqrt
 
 
 def _eigsh_scipy(
@@ -145,8 +131,8 @@ def _eigsh_scipy(
 
     eigvals, eigvecs = sp.linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
 
-    idx = np.argsort(eigvals)[::-1]
-    eigvals = 2 * eigvals[idx] - 1
+    idx = np.argsort(np.abs(eigvals))[::-1]
+    eigvals = eigvals[idx]
     eigvecs = eigvecs[:, idx]
     return (
         torch.as_tensor(eigvals, dtype=torch_dtype(config.dtype), device=config.device),
@@ -170,10 +156,10 @@ def _eigsh_cupy(
     v0 = cp.asarray(np.random.default_rng(config.seed).random(n, dtype=kernel.dtype))
 
     eigvals_cp, eigvecs_cp = cpx_linalg.eigsh(kernel, k=k + 1, which="LM", tol=config.eig_tol, v0=v0)
-    eigvals = 2 * torch.from_dlpack(eigvals_cp) - 1
+    eigvals = torch.from_dlpack(eigvals_cp)
     eigvecs = torch.from_dlpack(eigvecs_cp)
 
-    idx = torch.argsort(eigvals, descending=True)
+    idx = torch.argsort(eigvals.abs(), descending=True)
     return eigvals[idx], eigvecs[:, idx]
 
 
@@ -185,15 +171,17 @@ def compute_spectral_embedding(
 ) -> HDMResult:
     num_eig = config.num_eigenvectors
 
-    normalized_kernel = _normalize(config, joint_kernel)
+    normalized_kernel, d_inv_sqrt = _normalize(config, joint_kernel)
 
     if _is_cuda(config.device):
         vals, V = _eigsh_cupy(config, normalized_kernel, num_eig)
     else:
         vals, V = _eigsh_scipy(config, normalized_kernel, num_eig)
 
-    vals = vals[1 : num_eig + 1]
-    V = V[:, 1 : num_eig + 1]
+    d_scale = torch.as_tensor(d_inv_sqrt.diagonal(), dtype=V.dtype, device=V.device)[:, None]
+    lap_vals, lap_vecs = 1 - vals, d_scale * V
+    vals = vals[1 : num_eig + 1] ** 2
+    V = d_scale * V[:, 1 : num_eig + 1]
 
     if vals[0] >= 1 - config.eig_tol:
         warn(
@@ -225,4 +213,6 @@ def compute_spectral_embedding(
         HBDD.cpu().numpy(),
         offsets,
         config,
+        lap_vals.cpu().numpy(),
+        lap_vecs.cpu().numpy(),
     )

@@ -22,6 +22,7 @@ class HDMConfig(NamedTuple):
     t: float = 1.0
     dtype: type = np.float64
     eig_tol: float = 1e-8
+    normalization_type: str = "density"
     sinkhorn_max_iter: int = 1000
     sinkhorn_tol: float = 1e-8
     sinkhorn_jitter: float = 1e-8
@@ -37,6 +38,8 @@ class HDMResult(NamedTuple):
     HBDD: np.ndarray
     offsets: np.ndarray
     config: HDMConfig
+    laplacian_eigvals: np.ndarray | None = None
+    laplacian_eigvecs: np.ndarray | None = None
 
 
 
