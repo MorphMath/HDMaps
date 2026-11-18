@@ -12,13 +12,13 @@ from hdmaps.types import Indexable
 class HDMConfig(NamedTuple):
     """Parameters for :func:`run_hdm`."""
 
-    base_epsilon: float | None = None
-    fiber_epsilon: float | None = None
+    epsilon: float | None = None
+    gamma: float | None = None
     num_eigenvectors: int = 5
     device: torch.device = torch.device("cpu")
     base_metric: str = "frobenius"
     verbose: bool = True
-    seed: int = 67
+    seed: int = 19203838
     t: float = 1.0
     dtype: type = np.float64
     eig_tol: float = 1e-8
@@ -34,16 +34,9 @@ class HDMResult(NamedTuple):
     eigvals: np.ndarray
     HDM: np.ndarray
     HBDM: np.ndarray
-    HBDD: np.ndarray
     offsets: np.ndarray
     config: HDMConfig
 
-
-
-def get_backend(config: HDMConfig):
-    from . import backend
-
-    return backend
 
 
 def torch_dtype(dtype) -> torch.dtype:

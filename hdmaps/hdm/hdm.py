@@ -5,10 +5,10 @@ import scipy.sparse as sp
 from hdmaps.mapping import MapBundle
 from hdmaps.types import Indexable
 
+from . import backend
 from .utils import (
     HDMConfig,
     HDMResult,
-    get_backend,
     cast,
     get_sizes,
 )
@@ -21,17 +21,17 @@ def run_hdm(
     maps: MapBundle,
     fiber_dists: Indexable,
 ) -> HDMResult:
-    """Compute horizontal diffusion maps (HDM) and horizontal base diffusion distances (HBDD).
+    """Compute horizontal diffusion maps (HDM) and horizontal base diffusion maps (HBDM).
 
-    Builds a kernel on the base from ``base_dist``, lifts it through the maps onto the fibers into
-    a joint kernel over all points, normalizes it with Sinkhorn, and embeds it with its leading
-    eigenvectors. Kernels are ``exp(-d² / ε²)``.
+    Combines the base distances and, through the maps, the fiber distances into one squared
+    distance between the points of neighboring objects, turns it into a joint kernel over all
+    points, normalizes it with Sinkhorn, and embeds it with its leading eigenvectors.
 
     Parameters
     ----------
     config : HDMConfig
-        Parameters. ``base_epsilon`` and ``fiber_epsilon`` may be None to estimate them as the
-        median over matrices of each matrix's median non-zero distance.
+        Parameters. ``epsilon``, the kernel bandwidth, and ``gamma``, the weight of the fiber
+        distances against the base distance, must both be set.
     base_dist : scipy.sparse.csr_matrix
         ``(n, n)`` distances between the ``n`` objects. Stored entries are the neighbors; the zero
         diagonal must be stored.
@@ -52,7 +52,6 @@ def run_hdm(
         - ``eigvals``: ``(k,)`` their eigenvalues, in (0, 1).
         - ``HDM``: ``(κ, k)`` coordinates of every point, ``eigvecs`` scaled by ``eigvals ** t``.
         - ``HBDM``: ``(n, k²)`` embedding of every object.
-        - ``HBDD``: ``(n, n)`` distances between the objects' embeddings.
         - ``offsets``: ``(n + 1,)``; object ``i``'s points are rows ``offsets[i]:offsets[i + 1]``.
         - ``config``: the config used.
 
@@ -72,48 +71,46 @@ def run_hdm(
 
     Notes
     -----
-    Differences from the paper:
 
-    - Diffusion within an object is kept: the diagonal blocks of the joint kernel are the fiber
-      kernels, where the paper sets them to 0 (Def. 5.1).
-    - The joint kernel is normalized with Sinkhorn instead of alpha-normalization (Def. 5.1(2)).
+    Point ``x`` of object ``i`` and point ``y`` of a neighboring object ``j`` are at squared
+    distance
 
-    Soft maps: point ``x`` of object ``i`` is compared with point ``y`` of object ``j`` through the
-    map-weighted average of the distances from ``x``'s targets to ``y``, ``exp(-(M @ F)² / ε²)``.
-    For a map with one target per row, this is the paper's kernel. A pair is only linked if every
-    target has a stored distance to ``y``.
+        d²(x, y) = d_B(i, j)² + γ/2 · (Σₜ Mᵢⱼ[x, t] · Fⱼ[t, y]² + Σₛ Mⱼᵢ[y, s] · Fᵢ[s, x]²)
 
-    References
-    ----------
-    T. Gao, "The diffusion geometry of fibre bundles: Horizontal diffusion maps", Applied and
-    Computational Harmonic Analysis 50 (2021) 147–215. https://doi.org/10.1016/j.acha.2019.08.001
+    with ``d_B`` the base distance, ``M`` the maps and ``F`` the fiber distances: the base distance
+    plus, in both directions, the map-weighted average of the squared fiber distances from one
+    point's targets to the other point. The kernel is ``exp(-d² / ε²)``.
+
+    ``gamma`` weighs the fibers against the base. The larger it is, the more a mismatch within the
+    fibers counts, so the kernel concentrates on the pairs that the maps bring close together.
+
     """
 
     validate_inputs(config, base_dist, maps, fiber_dists)
     [base_dist] = cast([base_dist], config.dtype, "base_dist")
     fiber_dists = cast([fiber_dists[i] for i in range(len(fiber_dists))], config.dtype, "fiber_dists")
 
-
     num_data_samples, sizes = get_sizes(fiber_dists)
     offsets = np.cumsum([0, *sizes])
-    backend = get_backend(config)
 
     if config.verbose:
-        print("Compute HDM Embedding")
+        print("Computing HDM Embedding...")
 
-    base_kern = backend.build_base_kernel(config, base_dist)
-
-    if config.verbose:
-        print("Compute base kernel: Done.")
-
-
-    horizontal_diffusion_matrix = backend.build_horizontal_diffusion_matrix(
-        config, maps, base_kern, fiber_dists, offsets
+    total_distance_matrix_sq = backend.build_total_distance_matrix(
+        config, base_dist, fiber_dists, maps, offsets
     )
+
+    if config.verbose:
+        print("Construct Squared Total Distance Matrix: Done.")
+
+    coupled_kernel_matrix = backend.compute_kernel_matrix(
+        config, total_distance_matrix_sq
+    )
+
     if config.verbose:
         print("Construct Joint Kernel Matrix: Done.")
 
-    result = backend.compute_spectral_embedding(config, horizontal_diffusion_matrix, offsets, num_data_samples)
+    result = backend.compute_spectral_embedding(config, coupled_kernel_matrix, offsets, num_data_samples)
     if config.verbose:
         print("Spectral embedding: Done.")
 

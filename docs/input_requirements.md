@@ -44,6 +44,6 @@ Inputs whose dtype differs from `config.dtype` are cast to it, with one warning 
 
 ## Config
 
-- `config.base_epsilon` and `config.fiber_epsilon` are each `None` or greater than 0 (C1). When `None`, they are estimated as the median, over the matrices, of each matrix's median non-zero distance: of `base_dist` for the base, of the `fiber_dists` for the fibers. An estimate of 0, when there are no non-zero distances, raises an error asking to set the value.
+- `config.epsilon` and `config.gamma` are both set and greater than 0 (C1). `epsilon` is the kernel bandwidth and `gamma` the weight of the fiber distances against the base distance; see [Choosing parameters](parameters.md).
 - `config.t` is greater than 0 (C2).
 - `config.num_eigenvectors` is at least 1 and less than the total number of points minus 1 (C3).

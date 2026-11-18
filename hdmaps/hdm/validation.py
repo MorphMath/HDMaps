@@ -22,6 +22,8 @@ Distances (base_dist and every fiber_dists[i]):
     D4  No duplicate entries.
         Why: whether a mapped pair has every distance it needs is decided by counting stored entries,
         so a duplicate counts twice. scipy also sums duplicate values, silently doubling a distance.
+    D5  The matrix is symmetric.
+        Why: since the paper relies on it
 
 Maps:
     M1  maps[i, j] and maps[j, i] exist for every base edge (i, j) (for i = j it does not need to exist since we assume identity).
@@ -45,9 +47,9 @@ Structure:
         Checked only after the eigensolve: a second eigenvalue of 1 gives a warning, not an error.
 
 Config:
-    C1  base_epsilon and fiber_epsilon are each None or > 0; when None, the estimated value must be > 0.
-        Def. 5.1(1): "For ε > 0, δ > 0"
-        → ε and δ are the base and fiber bandwidths.
+    C1  epsilon > 0 and gamma > 0.
+        Why: epsilon is the bandwidth of the kernel exp(-d² / ε²), and gamma weighs the fiber
+        distances against the base distance in d² = d_B² + γ/2 · (mapped squared fiber distances).
     C2  t > 0.
         Sec. 3.2: "for any fixed diffusion time t ∈ R>0"
     C3  num_eigenvectors >= 1 and num_eigenvectors + 1 < the total number of fiber points.
@@ -56,13 +58,9 @@ Config:
         Why the + 1: we ask eigsh for num_eigenvectors + 1 eigenpairs, and it requires k < n.
 
 Deliberately not assumed:
-    - Symmetric distances: base and fiber kernels are symmetrized.
     - Consistent maps (maps[j, i] == maps[i, j].T): both directions are averaged.
     - Equal fiber sizes.
 
-Differs from the paper:
-    - Diagonal blocks: the paper sets them to 0 (Def. 5.1); we keep diffusion within an object.
-    - Normalization: the paper uses alpha-normalization (Def. 5.1(2)); we use Sinkhorn.
 """
 
 import numpy as np
@@ -72,6 +70,7 @@ from hdmaps.mapping import MapBundle
 from hdmaps.types import Indexable
 
 from .utils import HDMConfig, get_sizes
+
 
 
 def check_distances(D, name: str) -> None:
@@ -91,6 +90,8 @@ def check_distances(D, name: str) -> None:
         raise ValueError(f"D3: {name}: diagonal not fully stored, {on_diagonal.sum()} of {n} entries")
     if (D.data[on_diagonal] != 0).any():
         raise ValueError(f"D3: {name}: diagonal must be 0")
+    if not _is_symmetric(D):
+        raise ValueError(f"D5: {name}: must be symmetric")
 
 
 def check_structure(base_dist: sp.csr_matrix, maps: MapBundle, fiber_dists: Indexable[sp.csr_matrix]) -> None:
@@ -107,6 +108,7 @@ def check_structure(base_dist: sp.csr_matrix, maps: MapBundle, fiber_dists: Inde
             raise ValueError(f"S1: fiber_dists[{i}]: fiber has no points")
 
 
+
 def validate_inputs(
     config: HDMConfig, base_dist: sp.csr_matrix, maps: MapBundle, fiber_dists: Indexable[sp.csr_matrix]
 ) -> None:
@@ -117,7 +119,19 @@ def validate_inputs(
     check_config(config, sum(get_sizes(fiber_dists)[1]))
 
 
-def check_map(M, name: str, shape: tuple[int, int]) -> None:
+def validate_map_and_distances(M, fiber_dists, name: str, shape: tuple[int, int]) -> None:
+    if M.shape != shape:
+        raise ValueError(f"{name}: expected shape {shape}, got {M.shape}")
+
+    P = sp.csr_matrix(M) != 0
+    need = P.T @ P
+    have = sp.csr_matrix(fiber_dists) != 0
+    have = have + sp.eye(shape[1], dtype=bool, format="csr")
+
+    missing = (need > have).nnz
+    if missing:
+        raise ValueError(f"{name}: fiber_dists is missing {missing} distances that the map needs")
+
     if not (sp.issparse(M) and M.format == "csr"):
         raise ValueError(f"M2: {name}: expected a scipy sparse CSR matrix, got {type(M).__name__}; convert it with .tocsr()")
     if M.shape != shape:
@@ -136,10 +150,10 @@ def check_map(M, name: str, shape: tuple[int, int]) -> None:
 
 
 def check_config(config: HDMConfig, num_points: int) -> None:
-    for name in ("base_epsilon", "fiber_epsilon"):
-        eps = getattr(config, name)
-        if eps is not None and not eps > 0:
-            raise ValueError(f"C1: {name}: must be None or > 0, got {eps}")
+    for name in ("epsilon", "gamma"):
+        value = getattr(config, name)
+        if value is None or not value > 0:
+            raise ValueError(f"C1: {name}: must be > 0, got {value}")
     if not config.t > 0:
         raise ValueError(f"C2: t: must be > 0, got {config.t}")
     if not 1 <= config.num_eigenvectors < num_points - 1:
@@ -147,3 +161,7 @@ def check_config(config: HDMConfig, num_points: int) -> None:
             f"C3: num_eigenvectors: must be between 1 and {num_points - 2} for {num_points} points, "
             f"got {config.num_eigenvectors}"
         )
+
+
+def _is_symmetric(A):
+    return A.shape[0] == A.shape[1] and (A != A.T).nnz == 0
