@@ -68,19 +68,28 @@ def get_sizes(fiber_dists: Indexable[sp.csr_matrix]) -> tuple[int, list[int]]:
     return (num_data_samples, sizes)
 
 
-def approx_eps(mats: Indexable[sp.csr_matrix]) -> float:
+def typical_distance(mats: Indexable[sp.csr_matrix]) -> float:
     # median over the matrices of each one's median non-zero distance
     medians = [np.median(d) for i in range(len(mats)) if (d := mats[i].data[mats[i].data > 0]).size]
     return float(np.median(medians)) if medians else 0.0
 
 
-def resolve_epsilon(eps: float | None, mats: Indexable[sp.csr_matrix], name: str) -> float:
-    if eps is not None:
-        return eps
-    eps = approx_eps(mats)
-    if not eps > 0:
-        raise ValueError(f"C1: {name}: estimated as {eps}; set it in HDMConfig")
-    return eps
+def estimate_epsilon(base_dist: sp.csr_matrix) -> float:
+    return typical_distance([base_dist])
+
+
+def estimate_gamma(epsilon: float, fiber_dists: Indexable[sp.csr_matrix]) -> float:
+    fiber = typical_distance(fiber_dists)
+    return (epsilon / fiber) ** 2 if fiber > 0 else float("inf")
+
+
+def resolve(config: HDMConfig, base_dist: sp.csr_matrix, fiber_dists: Indexable[sp.csr_matrix]) -> HDMConfig:
+    epsilon = estimate_epsilon(base_dist) if config.epsilon is None else config.epsilon
+    gamma = estimate_gamma(epsilon, fiber_dists) if config.gamma is None else config.gamma
+    for name, value in (("epsilon", epsilon), ("gamma", gamma)):
+        if not 0 < value < float("inf"):
+            raise ValueError(f"C1: {name}: estimated as {value}; set it in HDMConfig")
+    return config._replace(epsilon=epsilon, gamma=gamma)
 
 
 def _is_cuda(device: torch.device | str) -> bool:

@@ -26,7 +26,7 @@ Distances (base_dist and every fiber_dists[i]):
         Why: since the paper relies on it
 
 Maps:
-    M1  maps[i, j] and maps[j, i] exist for every base edge (i, j) (for i = j it does not need to exist since we assume identity).
+    M1  maps[i, j] and maps[j, i] exist for every base edge (i, j), including i = j: maps[i, i], normally the identity.
         Why: both are fetched to build the joint kernel; maps outside base edges are never used.
     M2  A scipy sparse CSR matrix of shape (len(fiber i), len(fiber j)).
     M3  Entries are >= 0, and every row sums to 1.
@@ -37,6 +37,8 @@ Maps:
         Why: a stored entry counts as a map target, so a pair is dropped when that target lacks a distance.
     M5  No duplicate entries.
         Why: as D4.
+    M6  Any two points of fiber j that one point is mapped to have a stored distance in fiber_dists[j].
+        Why: a point then keeps a link to each of its own targets, so no point loses a neighboring fiber.
 
 Structure:
     S1  len(fiber_dists) == len(maps.data) == base_dist.shape[0], and every fiber has >= 1 point.
@@ -44,10 +46,10 @@ Structure:
     S2  The joint graph is connected.
         Sec. 3.1(3): "Without loss of generality, assume G is connected."
         → so the base graph is connected too.
-        Checked only after the eigensolve: a second eigenvalue of 1 gives a warning, not an error.
+        Checked on the joint kernel before the eigensolve.
 
 Config:
-    C1  epsilon > 0 and gamma > 0.
+    C1  epsilon and gamma are each None or > 0; when None, the estimated value must be > 0 and finite.
         Why: epsilon is the bandwidth of the kernel exp(-d² / ε²), and gamma weighs the fiber
         distances against the base distance in d² = d_B² + γ/2 · (mapped squared fiber distances).
     C2  t > 0.
@@ -65,6 +67,7 @@ Deliberately not assumed:
 
 import numpy as np
 import scipy.sparse as sp
+from scipy.sparse.csgraph import connected_components
 
 from hdmaps.mapping import MapBundle
 from hdmaps.types import Indexable
@@ -119,19 +122,7 @@ def validate_inputs(
     check_config(config, sum(get_sizes(fiber_dists)[1]))
 
 
-def validate_map_and_distances(M, fiber_dists, name: str, shape: tuple[int, int]) -> None:
-    if M.shape != shape:
-        raise ValueError(f"{name}: expected shape {shape}, got {M.shape}")
-
-    P = sp.csr_matrix(M) != 0
-    need = P.T @ P
-    have = sp.csr_matrix(fiber_dists) != 0
-    have = have + sp.eye(shape[1], dtype=bool, format="csr")
-
-    missing = (need > have).nnz
-    if missing:
-        raise ValueError(f"{name}: fiber_dists is missing {missing} distances that the map needs")
-
+def validate_map_and_distances(M, fiber_dist, name: str, shape: tuple[int, int]) -> None:
     if not (sp.issparse(M) and M.format == "csr"):
         raise ValueError(f"M2: {name}: expected a scipy sparse CSR matrix, got {type(M).__name__}; convert it with .tocsr()")
     if M.shape != shape:
@@ -147,13 +138,28 @@ def validate_map_and_distances(M, fiber_dists, name: str, shape: tuple[int, int]
     row_sums = np.asarray(M.sum(axis=1)).ravel()
     if (np.abs(row_sums - 1) > 0.01).any():
         raise ValueError(f"M3: {name}: every row must sum to 1, got row sums between {row_sums.min():.3g} and {row_sums.max():.3g}")
+    targets = _stored(M)
+    need = targets.T @ targets  # pairs of points that some point is mapped to together
+    missing = (need > _stored(fiber_dist)).nnz
+    if missing:
+        raise ValueError(f"M6: {name}: fiber_dists is missing {missing} distances between points the map sends a point to")
+
+
+def check_connected(kernel: sp.csr_matrix) -> None:
+    count, labels = connected_components(kernel, directed=False)
+    if count > 1:
+        sizes = np.sort(np.bincount(labels))[::-1]
+        raise ValueError(
+            f"S2: the joint graph has {count} connected components (largest sizes {sizes[:5].tolist()}); "
+            "store more neighbors or raise epsilon"
+        )
 
 
 def check_config(config: HDMConfig, num_points: int) -> None:
     for name in ("epsilon", "gamma"):
         value = getattr(config, name)
-        if value is None or not value > 0:
-            raise ValueError(f"C1: {name}: must be > 0, got {value}")
+        if value is not None and not value > 0:
+            raise ValueError(f"C1: {name}: must be None or > 0, got {value}")
     if not config.t > 0:
         raise ValueError(f"C2: t: must be > 0, got {config.t}")
     if not 1 <= config.num_eigenvectors < num_points - 1:
@@ -163,5 +169,12 @@ def check_config(config: HDMConfig, num_points: int) -> None:
         )
 
 
+def _stored(A: sp.csr_matrix) -> sp.csr_matrix:
+    """True at every stored entry of A, whatever its value."""
+    stored = A.astype(bool)
+    stored.data[:] = True
+    return stored
+
+
 def _is_symmetric(A):
-    return A.shape[0] == A.shape[1] and (A != A.T).nnz == 0
+    return A.shape[0] == A.shape[1] and (_stored(A) != _stored(A.T)).nnz == 0 and (A != A.T).nnz == 0

@@ -11,8 +11,9 @@ from .utils import (
     HDMResult,
     cast,
     get_sizes,
+    resolve,
 )
-from .validation import validate_inputs
+from .validation import check_connected, validate_inputs
 
 
 def run_hdm(
@@ -30,15 +31,17 @@ def run_hdm(
     Parameters
     ----------
     config : HDMConfig
-        Parameters. ``epsilon``, the kernel bandwidth, and ``gamma``, the weight of the fiber
-        distances against the base distance, must both be set.
+        Parameters. ``epsilon`` is the kernel bandwidth and ``gamma`` the weight of the fiber
+        distances against the base distance. Either may be None to estimate it: ``epsilon`` as the
+        median non-zero base distance, ``gamma`` as ``(epsilon / f)²`` with ``f`` the median over
+        the fibers of each fiber's median non-zero distance.
     base_dist : scipy.sparse.csr_matrix
         ``(n, n)`` distances between the ``n`` objects. Stored entries are the neighbors; the zero
         diagonal must be stored.
     maps : MapBundle
         Correspondences between objects. ``maps[i, j]`` is a ``(κᵢ, κⱼ)`` CSR matrix whose rows
-        sum to 1, needed in both directions for every pair of neighbors. ``maps[i, i]`` is never
-        read; the identity is used.
+        sum to 1, needed in both directions for every pair of neighbors, and from every object to
+        itself: ``maps[i, i]``, normally the identity.
     fiber_dists : Indexable[scipy.sparse.csr_matrix]
         ``n`` matrices; ``fiber_dists[i]`` is the ``(κᵢ, κᵢ)`` distance matrix between the points
         of object ``i``, with its zero diagonal stored.
@@ -59,15 +62,15 @@ def run_hdm(
     ------
     ValueError
         An input breaks an assumption listed in :mod:`hdmaps.hdm.validation`. The message starts
-        with the assumption's id, e.g. ``"D3: fiber_dists[4]: diagonal not fully stored"``.
+        with the assumption's id, e.g. ``"D3: fiber_dists[4]: diagonal not fully stored"``. This
+        includes a joint graph that is not connected (S2), found before the eigenvectors are computed.
     LookupError
         ``maps`` has no map for a pair of neighbors.
 
     Warns
     -----
     UserWarning
-        When inputs are cast to ``config.dtype``, and when the joint graph is disconnected or
-        nearly so (eigenvalue 1 is not simple).
+        When inputs are cast to ``config.dtype``.
 
     Notes
     -----
@@ -89,6 +92,7 @@ def run_hdm(
     validate_inputs(config, base_dist, maps, fiber_dists)
     [base_dist] = cast([base_dist], config.dtype, "base_dist")
     fiber_dists = cast([fiber_dists[i] for i in range(len(fiber_dists))], config.dtype, "fiber_dists")
+    config = resolve(config, base_dist, fiber_dists)
 
     num_data_samples, sizes = get_sizes(fiber_dists)
     offsets = np.cumsum([0, *sizes])
@@ -106,6 +110,7 @@ def run_hdm(
     coupled_kernel_matrix = backend.compute_kernel_matrix(
         config, total_distance_matrix_sq
     )
+    check_connected(coupled_kernel_matrix)
 
     if config.verbose:
         print("Construct Joint Kernel Matrix: Done.")
